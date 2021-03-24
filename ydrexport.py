@@ -5,6 +5,8 @@ from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from xml.dom import minidom
 from mathutils import Vector, Matrix
+from collections import deque
+from .tools import formatting as Formatting
 import os 
 import sys 
 import shutil
@@ -56,25 +58,30 @@ def order_vertex_list(list, vlayout):
 
 def vector_tostring(vector):
     try:
-        string = ""
-        string += str(vector.x) + " "   
-        string += str(vector.y)
-        if(hasattr(vector, "z")):   
-            string += " " + str(vector.z) 
-        else:
-            string += " "
-            
-        return string 
+        # string = ""
+        # string += str(vector.x) + " "   
+        # string += str(vector.y)
+        # if(hasattr(vector, "z")):   
+        #     string += " " + str(vector.z) 
+        # else:
+        #     string += " "
+        
+        string = [str(vector.x), str(vector.y)]
+        if(hasattr(vector, "z")):
+            string.append(str(vector.z))
+
+        return " ".join(string)
     except:
         return None
 
 def meshloopcolor_tostring(color):
     try:
-        string = ""
-        string += str(round(color[0] * 255)) + " "
-        string += str(round(color[1] * 255)) + " "
-        string += str(round(color[2] * 255)) + " "
-        string += str(round(color[3] * 255))
+        string = " ".join(str(round(color[i] * 255)) for i in range(4))
+        # string = ""
+        # string += str(round(color[0] * 255)) + " "
+        # string += str(round(color[1] * 255)) + " "
+        # string += str(round(color[2] * 255)) + " "
+        # string += str(round(color[3] * 255))
         return string 
     except:
         return None
@@ -85,9 +92,10 @@ def process_uv(uv):
 
     return [u, v]
 
-def get_vertex_string(mesh, vlayout):
-    
-    allstrings = []
+def get_vertex_string(obj, vlayout, bones):
+    mesh = obj.data
+
+    allstrings = deque()
     allstrings.append("\n") #makes xml a little prettier
     
     vertamount = len(mesh.vertices)
@@ -103,7 +111,14 @@ def get_vertex_string(mesh, vlayout):
     for i in range(6):
         texcoords[i] = [None] * vertamount       
     
+    mesh.calc_normals_split()
     mesh.calc_tangents()
+
+    vertex_groups = obj.vertex_groups
+
+    bones_index_dict = {}
+    for i in range(len(bones)):
+        bones_index_dict[bones[i].name] = i
 
     clr0_layer = None 
     if(mesh.vertex_colors == None):
@@ -122,21 +137,41 @@ def get_vertex_string(mesh, vlayout):
                 fixed_uv = Vector((u, v))
                 texcoords[uv_layer_id][vi] = fixed_uv
 
-            
     for poly in mesh.polygons:
         for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
             vi = mesh.loops[loop_index].vertex_index
             vertices[vi] = mesh.vertices[vi].co
-            normals[vi] = mesh.vertices[vi].normal
+            # normals[vi] = mesh.vertices[vi].normal
+            normals[vi] = mesh.loops[loop_index].normal
             clr[vi] = clr0_layer.data[loop_index].color
             tangents[vi] = mesh.loops[loop_index].tangent 
-            #FIXME: write actual blend weights and indices
-            blendw[vi] = "0 0 255 0"
-            blendi[vi] = "0 0 0 0"
-            
+            #FIXME: one vert can only be influenced by 4 weights at most
+            vertex_group_elements = mesh.vertices[vi].groups
+
+            if len(vertex_group_elements) > 0:
+                blendw_list = deque()
+                blendi_list = deque()
+                for element in vertex_group_elements:
+                    if (element.weight > 0.0):
+                        blendw_list.append(round(element.weight * 255))
+                        vertex_group = vertex_groups[element.group]
+                        bone_index = bones_index_dict[vertex_group.name]
+                        blendi_list.append(bone_index)
+
+                #fill the positions where there are no weights
+                if len(blendw_list) < 4:
+                    for i in range(4 - len(blendw_list)):
+                        blendw_list.append(0)
+                        blendi_list.append(0)
+
+                blendw[vi] = ' '.join(str(i) for i in blendw_list)
+                blendi[vi] = ' '.join(str(i) for i in blendi_list)
+            else:
+                blendw[vi] = "0 0 255 0"
+                blendi[vi] = "0 0 0 0"
+
     for i in range(len(vertices)):
-        vstring = ""
-        tlist = []
+        tlist = deque()
         tlist.append(vector_tostring(vertices[i])) 
         tlist.append(vector_tostring(normals[i])) 
         tlist.append(meshloopcolor_tostring(clr[i])) 
@@ -152,32 +187,30 @@ def get_vertex_string(mesh, vlayout):
         tlist.append(blendi[i])
         
         layoutlist = order_vertex_list(tlist, vlayout)
-        
-        vstring = " " * 5
+
+        vstring = deque(" " * 5)
         for l in layoutlist:
             if(l != None):
-                vstring += l 
-                vstring += " " * 3
+                vstring.append(l)
+                vstring.append(" " * 3)
             else:
                 print('Layoutlist elem is None!')
-        vstring += "\n" 
-        allstrings.append(vstring) 
-            
-    vertex_string = ""
-    for s in allstrings:       
-        vertex_string += s
+        vstring.append("\n")
+        allstrings.append("".join(vstring))
     
+    vertex_string = "".join(allstrings)
+
     return vertex_string
 
 def get_index_string(mesh):
     
-    index_string = ""
+    index_list = deque()
     
     for poly in mesh.polygons:
         for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
-            index_string += str(mesh.loops[loop_index].vertex_index) + " "
+            index_list.append(str(mesh.loops[loop_index].vertex_index))
             
-    return index_string
+    return " ".join(index_list)
 
 def fix_shader_name(name, no_extension = False): #because blender renames everything to .00X
     newname = ""
@@ -201,6 +234,7 @@ def get_vertex_layout(shader):
     PNCT = ["Position", "Normal", "Colour0", "TexCoord0"]
     PNCCT = ["Position", "Normal", "Colour0", "Colour1", "TexCoord0"]
     PNCTX = ["Position", "Normal", "Colour0", "TexCoord0", "Tangent"]
+    PNCCTX = ["Position", "Normal", "Colour0", "Colour1", "TexCoord0", "Tangent"]
     PNCTTX = ["Position", "Normal", "Colour0", "TexCoord0", "TexCoord1", "Tangent"]
     PBBCCT = ["Position", "BlendWeights", "BlendIndices", "Colour0", "Colour1", "TexCoord0"]
     PBBNCTX = ["Position", "BlendWeights", "BlendIndices", "Normal", "Colour0", "TexCoord0", "Tangent"]
@@ -394,10 +428,11 @@ def get_vertex_layout(shader):
     elif shader == "vehicle_decal2.sps": return PBBNCTX
     elif shader == "vehicle_detail2.sps": return PBBNCTT
     elif shader == "vehicle_vehglass_inner.sps": return PBBNCTT
+    elif shader == "ped.sps": return PBBNCTTX
 
     print('Unknown shader: ', shader)
 
-def write_model_node(objs, materials):
+def write_model_node(objs, materials, bones):
     
     m_node = Element("Item")
     rm_node = Element("RenderMask")
@@ -453,7 +488,7 @@ def write_model_node(objs, materials):
         vlayout = get_vertex_layout(shader.name)
 
         data2_node = Element("Data2")
-        vertex_str = get_vertex_string(model, vlayout)
+        vertex_str = get_vertex_string(obj, vlayout, bones)
         data2_node.text = vertex_str
         
         ib_node = Element("IndexBuffer")
@@ -489,7 +524,7 @@ def write_model_node(objs, materials):
     
     return m_node
     
-def write_drawablemodels_node(models, materials):
+def write_drawablemodels_node(models, materials, bones):
     
     high_models = []
     med_models = []
@@ -509,13 +544,13 @@ def write_drawablemodels_node(models, materials):
     
     if(len(high_models) != 0):
         drawablemodels_high_node = Element("DrawableModelsHigh")
-        drawablemodels_high_node.append(write_model_node(high_models, materials))
+        drawablemodels_high_node.append(write_model_node(high_models, materials, bones))
     if(len(med_models) != 0):
         drawablemodels_med_node = Element("DrawableModelsMedium")
-        drawablemodels_med_node.append(write_model_node(med_models, materials))
+        drawablemodels_med_node.append(write_model_node(med_models, materials, bones))
     if(len(low_models) != 0):
         drawablemodels_low_node = Element("DrawableModelsLow")
-        drawablemodels_low_node.append(write_model_node(low_models, materials))
+        drawablemodels_low_node.append(write_model_node(low_models, materials, bones))
     
     dm_nodes = []
     if(drawablemodels_high_node != None):
@@ -859,19 +894,13 @@ def write_skeleton_node(obj):
 
         bone_node_flags = Element("Flags")
         flags = []
-        flags_text = ""
         for flag in bone.bone_properties.flags:
             flags.append(flag.name)
 
         if len(bone.children) > 0:
             flags.append("Unk0")
 
-        for i in range(len(flags)):
-            flags_text += flags[i]
-            if (i != len(flags) - 1):
-                flags_text += ", "
-
-        bone_node_flags.text = flags_text
+        bone_node_flags.text = ", ".join(flags)
         bone_node.append(bone_node_flags)
 
         mat = bone.matrix_local
@@ -1065,14 +1094,15 @@ def write_drawable(obj, filepath):
     geometrys = []
     materials = get_used_materials()
     bounds = []
-    
+    bones = obj.pose.bones
+
     for c in children:
         if(c.sollumtype == "Geometry"):
             geometrys.append(c)
             
     shadergroup_node = write_shader_group_node(materials, filepath)
     skeleton_node = write_skeleton_node(obj)
-    drawablemodels_node = write_drawablemodels_node(geometrys, materials)
+    drawablemodels_node = write_drawablemodels_node(geometrys, materials, bones)
     bounds_node = None
     
     drawable_node.append(name_node)
@@ -1123,8 +1153,10 @@ def write_ydr_xml(context, filepath):
     if(root == None):
         return "No Sollumz Drawable found to export"
     
-    xmlstr = prettify(root)
-    with open(filepath, "w") as f:
+    # xmlstr = prettify(root)
+    Formatting.prettyxml(root)
+    xmlstr = ElementTree.tostring(root)
+    with open(filepath, "wb") as f:
         f.write(xmlstr)
         return "Sollumz Drawable was succesfully exported to " + filepath
             
@@ -1137,7 +1169,7 @@ class ExportYDR(Operator, ExportHelper):
     filename_ext = ".ydr.xml"
 
     def execute(self, context):
-        start = datetime.now    ()
+        start = datetime.now()
         
         #try:
         result = write_ydr_xml(context, self.filepath)
