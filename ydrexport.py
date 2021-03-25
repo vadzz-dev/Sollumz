@@ -70,6 +70,9 @@ def vector_tostring(vector):
         if(hasattr(vector, "z")):
             string.append(str(vector.z))
 
+        if(hasattr(vector, "w")):
+            string.append(str(vector.w))
+
         return " ".join(string)
     except:
         return None
@@ -92,8 +95,10 @@ def process_uv(uv):
 
     return [u, v]
 
-def get_vertex_string(obj, vlayout, bones):
-    mesh = obj.data
+def get_vertex_string(obj, vlayout, bones, depsgraph):
+    # mesh = bpy.data.meshes.new_from_object(obj)
+    mesh = obj.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
+    # mesh = obj.data
 
     allstrings = deque()
     allstrings.append("\n") #makes xml a little prettier
@@ -121,10 +126,16 @@ def get_vertex_string(obj, vlayout, bones):
         bones_index_dict[bones[i].name] = i
 
     clr0_layer = None 
+    clr1_layer = None
     if(mesh.vertex_colors == None):
         clr0_layer = mesh.vertex_colors.new()
+        clr1_layer = mesh.vertex_colors.new()
     else:
         clr0_layer = mesh.vertex_colors[0]
+        if len(mesh.vertex_colors) >= 2:
+            clr1_layer = mesh.vertex_colors[1]
+        else:
+            clr1_layer = mesh.vertex_colors.new()
 
     for uv_layer_id in range(len(mesh.uv_layers)):
         uv_layer = mesh.uv_layers[uv_layer_id].data
@@ -144,7 +155,10 @@ def get_vertex_string(obj, vlayout, bones):
             # normals[vi] = mesh.vertices[vi].normal
             normals[vi] = mesh.loops[loop_index].normal
             clr[vi] = clr0_layer.data[loop_index].color
-            tangents[vi] = mesh.loops[loop_index].tangent 
+            clr1[vi] = clr1_layer.data[loop_index].color
+            tangents[vi] = mesh.loops[loop_index].tangent.to_4d()
+            #https://github.com/labnation/MonoGame/blob/master/MonoGame.Framework.Content.Pipeline/Graphics/MeshHelper.cs#L298
+            tangents[vi].w = mesh.loops[loop_index].bitangent_sign
             #FIXME: one vert can only be influenced by 4 weights at most
             vertex_group_elements = mesh.vertices[vi].groups
 
@@ -182,7 +196,7 @@ def get_vertex_string(obj, vlayout, bones):
         tlist.append(vector_tostring(texcoords[3][i]))
         tlist.append(vector_tostring(texcoords[4][i]))
         tlist.append(vector_tostring(texcoords[5][i]))
-        tlist.append(vector_tostring(tangents[i]))
+        tlist.append(vector_tostring(tangents[vi]))
         tlist.append(blendw[i])
         tlist.append(blendi[i])
         
@@ -194,7 +208,7 @@ def get_vertex_string(obj, vlayout, bones):
                 vstring.append(l)
                 vstring.append(" " * 3)
             else:
-                print('Layoutlist elem is None!')
+                pass
         vstring.append("\n")
         allstrings.append("".join(vstring))
     
@@ -241,6 +255,9 @@ def get_vertex_layout(shader):
     PBBNCTTX = ["Position", "BlendWeights", "BlendIndices", "Normal", "Colour0", "TexCoord0", "TexCoord1", "Tangent"]
     PBBNCTT = ["Position", "BlendWeights", "BlendIndices", "Normal", "Colour0", "TexCoord0", "TexCoord1"]
     PBBNCT = ["Position", "BlendWeights", "BlendIndices", "Normal", "Colour0", "TexCoord0"]
+    PBBNCCT = ["Position", "BlendWeights", "BlendIndices", "Normal", "Colour0", "Colour1", "TexCoord0"]
+    PBBNCCTX = ["Position", "BlendWeights", "BlendIndices", "Normal", "Colour0", "Colour1", "TexCoord0", "Tangent"]
+    PBBNCCTTX = ["Position", "BlendWeights", "BlendIndices", "Normal", "Colour0", "Colour1", "TexCoord0", "TexCoord1", "Tangent"]
     PNCCTTX = ["Position", "Normal", "Colour0", "Colour1", "TexCoord0", "TexCoord1", "Tangent"]
     PNCTTTX = ["Position", "Normal", "Colour0", "TexCoord0", "TexCoord1", "TexCoord2", "Tangent"]
     PNCCT3TX = ["Position", "Normal", "Colour0", "Colour1", "TexCoord0", "TexCoord3", "Tangent"]
@@ -428,7 +445,11 @@ def get_vertex_layout(shader):
     elif shader == "vehicle_decal2.sps": return PBBNCTX
     elif shader == "vehicle_detail2.sps": return PBBNCTT
     elif shader == "vehicle_vehglass_inner.sps": return PBBNCTT
-    elif shader == "ped.sps": return PBBNCTTX
+    elif shader == "ped.sps": return PBBNCCTTX
+    elif shader == "ped_default.sps": return PBBNCCT
+    elif shader == "ped_emissive.sps": return PBBNCCTTX
+    elif shader == "ped_decal_expensive.sps": return PBBNCCTTX
+    elif shader == "ped_hair_spiked.sps": return PBBNCCTX
 
     print('Unknown shader: ', shader)
 
@@ -438,17 +459,28 @@ def write_model_node(objs, materials, bones):
     rm_node = Element("RenderMask")
     rm_node.set("value", str(objs[0].mask))
     flags_node = Element("Flags")
-    flags_node.set("value", "0")
+    flags_node.set("value", "1")
     has_skin_node = Element("HasSkin")
-    has_skin_node.set("value", "0")
+    if len(objs[0].vertex_groups) > 0:
+        has_skin_node.set("value", "1")
+    else:
+        has_skin_node.set("value", "0")
+
     bone_index_node = Element("BoneIndex")
     bone_index_node.set("value", "0")
+
     unk1_node = Element("Unknown1")
-    unk1_node.set("value", "0")
-    
+    if bones != None:
+        unk1_node.set("value", str(len(bones)))
+    else:
+        unk1_node.set("value", "0")
+
     geo_node = Element("Geometries")
+    depsgraph = bpy.context.evaluated_depsgraph_get()
     for obj in objs:
-        model = obj.data
+        obj_eval = obj.evaluated_get(depsgraph)
+        model = bpy.data.meshes.new_from_object(obj_eval)
+        # model = obj.data
         
         i_node = Element("Item")
         
@@ -474,7 +506,11 @@ def write_model_node(objs, materials, bones):
         bbmax_node.set("y", str(bound_box_max[1]))  
         bbmax_node.set("z", str(bound_box_max[2]))
         bbmax_node.set("w", "0")
-        
+
+        boneids_node = Element("BoneIDs")
+        if bones != None:
+            boneids_node.text = ", ".join(str(i) for i in range(len(bones)))
+
         vb_node = Element("VertexBuffer")
         vbflags_node = Element("Flags")
         vbflags_node.set("value", "0")
@@ -488,7 +524,7 @@ def write_model_node(objs, materials, bones):
         vlayout = get_vertex_layout(shader.name)
 
         data2_node = Element("Data2")
-        vertex_str = get_vertex_string(obj, vlayout, bones)
+        vertex_str = get_vertex_string(obj_eval, vlayout, bones, depsgraph)
         data2_node.text = vertex_str
         
         ib_node = Element("IndexBuffer")
@@ -508,6 +544,7 @@ def write_model_node(objs, materials, bones):
         i_node.append(shd_index)
         i_node.append(bbmin_node)
         i_node.append(bbmax_node)
+        i_node.append(boneids_node)
         i_node.append(vb_node)
         i_node.append(ib_node)
         
@@ -840,11 +877,31 @@ def write_shader_group_node(materials, filepath):
     return shaderg_node
 
 def write_skeleton_node(obj):
-    skeleton_node = Element("Skeleton")
-    bones_node = Element("Bones")
-    skeleton_node.append(bones_node)
-
     bones = obj.pose.bones
+    if len(bones) == 0:
+        return None
+
+    skeleton_node = Element("Skeleton")
+
+    unk1c_node = Element("Unknown1C")
+    unk1c_node.set("value", "16777216")
+
+    unk50_node = Element("Unknown50")
+    unk50_node.set("value", "0")
+
+    unk54_node = Element("Unknown54")
+    unk54_node.set("value", "0")
+
+    unk58_node = Element("Unknown58")
+    unk58_node.set("value", "0")
+
+    bones_node = Element("Bones")
+
+    skeleton_node.append(unk1c_node)
+    skeleton_node.append(unk50_node)
+    skeleton_node.append(unk54_node)
+    skeleton_node.append(unk58_node)
+    skeleton_node.append(bones_node)
 
     ind = 0
     for pbone in bones:
@@ -1030,13 +1087,13 @@ def get_sphere_bb(objs, bbminmax):
 
 #still presents a problem where in a scenario you had other ydrs you didnt want to export in the scene it would pick up 
 #them materials also 
-def get_used_materials():
+def get_used_materials(drawable):
     
     materials = []
     
-    all_objects = bpy.data.objects
-    
-    for obj in all_objects:
+    children = drawable.children
+
+    for obj in children:
         if(obj.sollumtype == "Geometry"):
             mat = obj.active_material
             if(mat != None):
@@ -1044,13 +1101,13 @@ def get_used_materials():
 
     return materials
 
-def write_drawable(obj, filepath):
+def write_drawable(obj, filepath, root_name="Drawable", bones=None):
     
     children = get_obj_children(obj)
     bbminmax = get_bbs(children)
     bbsphere = get_sphere_bb(children, bbminmax)
     
-    drawable_node = Element("Drawable")
+    drawable_node = Element(root_name)
     name_node = Element("Name")
     name_node.text = obj.name
     
@@ -1080,26 +1137,41 @@ def write_drawable(obj, filepath):
     ldl_node.set("value", str(obj.drawble_distance_low))
     ldvl_node = Element("LodDistVlow")
     ldvl_node.set("value", str(obj.drawble_distance_vlow)) 
-    flagsh_node = Element("FlagsHigh")
-    flagsh_node.set("value", "0")
-    flagsm_node = Element("FlagsMed")
-    flagsm_node.set("value", "0")
-    flagsl_node = Element("FlagsLow")
-    flagsl_node.set("value", "0")
-    flagsvl_node = Element("FlagsVlow")
-    flagsvl_node.set("value", "0")
-    Unk9a_node = Element("Unknown9A")
-    Unk9a_node.set("value", "0")
-    
-    geometrys = []
-    materials = get_used_materials()
-    bounds = []
-    bones = obj.pose.bones
 
+    geometrys = []
+    materials = get_used_materials(obj)
+    bounds = []
+    if bones == None:
+        bones = obj.pose.bones
+
+    flagshigh = 0
+    flagsmed = 0
+    flagslow = 0
+    flagsvlow = 0
+    
     for c in children:
         if(c.sollumtype == "Geometry"):
             geometrys.append(c)
+            if(c.level_of_detail == "High"):
+                flagshigh += 1
+            if(c.level_of_detail == "Medium"):
+                flagsmed += 1
+            if(c.level_of_detail == "Low"):
+                flagslow += 1
+            if(c.level_of_detail == "Very Low"):
+                flagsvlow += 1
             
+    flagsh_node = Element("FlagsHigh")
+    flagsh_node.set("value", str(flagshigh))
+    flagsm_node = Element("FlagsMed")
+    flagsm_node.set("value", str(flagsmed))
+    flagsl_node = Element("FlagsLow")
+    flagsl_node.set("value", str(flagslow))
+    flagsvl_node = Element("FlagsVlow")
+    flagsvl_node.set("value", str(flagsvlow))
+    Unk9a_node = Element("Unknown9A")
+    Unk9a_node.set("value", "0")
+
     shadergroup_node = write_shader_group_node(materials, filepath)
     skeleton_node = write_skeleton_node(obj)
     drawablemodels_node = write_drawablemodels_node(geometrys, materials, bones)
@@ -1120,7 +1192,9 @@ def write_drawable(obj, filepath):
     drawable_node.append(flagsvl_node)
     drawable_node.append(Unk9a_node)
     drawable_node.append(shadergroup_node)
-    drawable_node.append(skeleton_node)
+    if skeleton_node != None:
+        drawable_node.append(skeleton_node)
+
     for dm_node in drawablemodels_node:
         drawable_node.append(dm_node)
     if(bounds_node != None):
@@ -1130,6 +1204,26 @@ def write_drawable(obj, filepath):
     
     return drawable_node
     
+def write_drawable_dictionary(obj, filepath):
+    drawable_dictionary_node = Element("DrawableDictionary")
+    children = None
+    if len(obj.drawable_dictionary_properties.exportables) > 0:
+        children = [i.drawable for i in obj.drawable_dictionary_properties.exportables]
+    else:
+        children = get_obj_children(obj)
+
+    bones = None
+    for c in children:
+        if c.sollumtype == "Drawable" and len(c.pose.bones) > 0:
+            bones = c.pose.bones
+            break
+
+    for c in children:
+        if c.sollumtype == "Drawable":
+            drawable_node = write_drawable(c, filepath, "Item", bones)
+            drawable_dictionary_node.append(drawable_node)
+
+    return drawable_dictionary_node
 
 def write_ydr_xml(context, filepath):
     
@@ -1159,7 +1253,36 @@ def write_ydr_xml(context, filepath):
     with open(filepath, "wb") as f:
         f.write(xmlstr)
         return "Sollumz Drawable was succesfully exported to " + filepath
-            
+
+def write_ydd_xml(context, filepath):
+    
+    root = None
+
+    objects = bpy.context.scene.collection.objects
+
+    if(len(objects) == 0):
+        return "No objects in scene for Sollumz export"
+    
+    #select the object first?
+    for obj in objects:
+        if(obj.sollumtype == "Drawable Dictionary"):
+            root = write_drawable_dictionary(obj, filepath)
+            try: 
+                print("*** Complete ***")
+            except:
+                print(str(Exception))
+                return str(Exception)
+
+    if(root == None):
+        return "No Sollumz Drawable found to export"
+    
+    # xmlstr = prettify(root)
+    Formatting.prettyxml(root)
+    xmlstr = ElementTree.tostring(root)
+    with open(filepath, "wb") as f:
+        f.write(xmlstr)
+        return "Sollumz Drawable was succesfully exported to " + filepath
+
 class ExportYDR(Operator, ExportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
     bl_idname = "exportxml.ydr"  # important since its how bpy.ops.import_test.some_data is constructed
@@ -1187,15 +1310,45 @@ class ExportYDR(Operator, ExportHelper):
         print("difference: " + str(difference) + " seconds")
         return {'FINISHED'}
 
+class ExportYDD(Operator, ExportHelper):
+    """This appears in the tooltip of the operator and in the generated docs"""
+    bl_idname = "exportxml.ydd"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_label = "Export Ydd Xml (.ydd.xml)"
+
+    # ExportHelper mixin class uses this
+    filename_ext = ".ydd.xml"
+
+    def execute(self, context):
+        start = datetime.now()
+        
+        #try:
+        result = write_ydd_xml(context, self.filepath)
+        self.report({'INFO'}, result)
+        
+        #except Exception:
+        #    self.report({"ERROR"}, str(Exception) )
+            
+        finished = datetime.now()
+        difference = (finished - start).total_seconds()
+        print("Exporting : " + self.filepath)
+        print("Export Time:")
+        print("start time: " + str(start))
+        print("end time: " + str(finished))
+        print("difference: " + str(difference) + " seconds")
+        return {'FINISHED'}
+
 # Only needed if you want to add into a dynamic menu
 def menu_func_export(self, context):
     self.layout.operator(ExportYDR.bl_idname, text="Ydr Xml Export (.ydr.xml)")
+    self.layout.operator(ExportYDD.bl_idname, text="Ydd Xml Export (.ydd.xml)")
 
 def register():
     bpy.utils.register_class(ExportYDR)
+    bpy.utils.register_class(ExportYDD)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
 
 
 def unregister():
     bpy.utils.unregister_class(ExportYDR)
+    bpy.utils.unregister_class(ExportYDD)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)

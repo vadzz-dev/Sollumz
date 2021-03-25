@@ -27,7 +27,23 @@ class SollumzMainPanel(bpy.types.Panel):
             subbox.props_enum(object, "sollumtype")
             
             if(object.sollumtype == "Fragment"):
-                box = mainbox.box()                
+                box = mainbox.box()
+
+            if(object.sollumtype == "Drawable Dictionary"):
+                box = mainbox.column()
+                box.label(text = "Custom Exportables Order:")
+                properties = object.drawable_dictionary_properties
+                index = properties.ul_exportablesorder_index
+                box.template_list("SOLLUMZ_UL_ExportablesOrder", "ExportablesOrder", properties, "exportables", properties, "ul_exportablesorder_index")
+                if len(properties.exportables) > 0:
+                    box.prop(properties.exportables[index], "drawable", text="Drawable")
+                
+                row = mainbox.row()
+                row.operator('sollumz_exportablesorder.new_item', text='New')
+                row.operator('sollumz_exportablesorder.delete_item', text='Delete')
+                row.operator('sollumz_exportablesorder.move_item', text='Up').direction = 'UP'
+                row.operator('sollumz_exportablesorder.move_item', text='Down').direction = 'DOWN'
+                row.operator('sollumz_exportablesorder.copy', text='Copy')
 
             if(object.sollumtype == "Drawable"):
                 box = mainbox.box()
@@ -37,10 +53,11 @@ class SollumzMainPanel(bpy.types.Panel):
                 row = box.row()
                 box.prop(object, "drawble_distance_low")
                 box.prop(object, "drawble_distance_vlow")
+
             if(object.sollumtype == "Geometry"):
                 box = mainbox.box()
                 box.prop(object, "level_of_detail")
-                box.prop(object, "mask")   
+                box.prop(object, "mask")
         
         box = layout.box()
         box.label(text = "Tools") 
@@ -189,6 +206,92 @@ class SollumzMaterialPanel(bpy.types.Panel):
                 
                 prevname = n.name 
 
+class SOLLUMZ_UL_ExportablesOrder(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index): 
+        custom_icon = 'ARMATURE_DATA'
+
+        if self.layout_type in {'DEFAULT', 'COMPACT'}: 
+            if item.drawable != None:
+                layout.label(text=item.drawable.name, icon = custom_icon, translate=False)
+            else:
+                layout.label(text=item.name, icon = custom_icon, translate=False)
+        elif self.layout_type in {'GRID'}: 
+            layout.alignment = 'CENTER' 
+            if item.drawable != None:
+                layout.label(text=item.drawable.name, icon = custom_icon, translate=False)
+            else:
+                layout.label(text=item.name, icon = custom_icon, translate=False)
+
+class SOLLUMZ_OT_ExportablesOrder_NewItem(Operator): 
+    bl_idname = "sollumz_exportablesorder.new_item" 
+    bl_label = "Add a new item"
+    def execute(self, context): 
+        obj = context.active_object
+        obj.drawable_dictionary_properties.exportables.add() 
+        return {'FINISHED'}
+
+class SOLLUMZ_OT_ExportablesOrder_DeleteItem(Operator): 
+    bl_idname = "sollumz_exportablesorder.delete_item" 
+    bl_label = "Deletes an item" 
+    @classmethod 
+    def poll(cls, context): 
+        return context.active_object.drawable_dictionary_properties.exportables
+
+    def execute(self, context): 
+        obj = context.active_object
+
+        my_list = obj.drawable_dictionary_properties.exportables
+        index = obj.drawable_dictionary_properties.ul_exportablesorder_index
+        my_list.remove(index) 
+        obj.drawable_dictionary_properties.ul_exportablesorder_index = min(max(0, index - 1), len(my_list) - 1) 
+        return {'FINISHED'}
+
+class SOLLUMZ_OT_ExportablesOrder_MoveItem(Operator):
+    """Move an item in the list."""
+
+    bl_idname = "sollumz_exportablesorder.move_item"
+    bl_label = "Move an item in the list"
+
+    direction = bpy.props.EnumProperty(items=(('UP', 'Up', ""),
+                                              ('DOWN', 'Down', ""),))
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object.drawable_dictionary_properties.exportables
+
+    def move_index(self, context):
+        """ Move index of an item render queue while clamping it. """
+        obj = context.active_object
+
+        index = obj.drawable_dictionary_properties.ul_exportablesorder_index
+        list_length = len(obj.drawable_dictionary_properties.exportables) - 1  # (index starts at 0)
+        new_index = index + (-1 if self.direction == 'UP' else 1)
+
+        obj.drawable_dictionary_properties.ul_exportablesorder_index = max(0, min(new_index, list_length))
+
+    def execute(self, context):
+        obj = context.active_object
+
+        my_list = obj.drawable_dictionary_properties.exportables
+        index = obj.drawable_dictionary_properties.ul_exportablesorder_index
+
+        neighbor = index + (-1 if self.direction == 'UP' else 1)
+        my_list.move(neighbor, index)
+        self.move_index(context)
+
+        return{'FINISHED'}
+
+class SOLLUMZ_OT_ExportablesOrder_Copy(Operator): 
+    bl_idname = "sollumz_exportablesorder.copy" 
+    bl_label = "Copy"
+    def execute(self, context): 
+        obj = context.active_object
+        for c in obj.children:
+            exportable = obj.drawable_dictionary_properties.exportables.add()
+            exportable.drawable = c
+
+        return {'FINISHED'}
+
 class SOLLUMZ_UL_BoneFlags(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index): 
         custom_icon = 'FILE'
@@ -252,6 +355,11 @@ classes = (
     SollumzMaterialPanel,
     SollumzMainPanel,
     SollumzBonePanel,
+    SOLLUMZ_UL_ExportablesOrder,
+    SOLLUMZ_OT_ExportablesOrder_NewItem,
+    SOLLUMZ_OT_ExportablesOrder_DeleteItem,
+    SOLLUMZ_OT_ExportablesOrder_MoveItem,
+    SOLLUMZ_OT_ExportablesOrder_Copy,
     SOLLUMZ_UL_BoneFlags,
     SOLLUMZ_OT_BoneFlags_NewItem,
     SOLLUMZ_OT_BoneFlags_DeleteItem,

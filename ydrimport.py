@@ -830,12 +830,17 @@ class ImportYDD(Operator, ImportHelper):
                 context.scene.collection.objects.link(obj)
                 obj.parent = vmodel_obj
                 mod_objs.append(obj)
-                
+            
+            vmodel_obj.sollumtype = "Drawable"
             vmodels.append(vmodel_obj)
 
         vmodel_dict_obj = bpy.data.objects.new(name, None)
+        vmodel_dict_obj.sollumtype = "Drawable Dictionary"
+
         for vmodel in vmodels:
             vmodel.parent = vmodel_dict_obj
+            exportable = vmodel_dict_obj.drawable_dictionary_properties.exportables.add()
+            exportable.drawable = vmodel_obj
 
         context.scene.collection.objects.link(vmodel_dict_obj)
 

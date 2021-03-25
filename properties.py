@@ -10,6 +10,7 @@ bpy.types.Object.sollumtype = bpy.props.EnumProperty(
                                                         items = [
                                                                     ("None", "None", "None"),
                                                                     ("Fragment", "Fragment", "Fragment"),
+                                                                    ("Drawable Dictionary", "Drawable Dictionary", "Drawable Dictionary"),
                                                                     ("Drawable", "Drawable", "Drawable"), 
                                                                     ("Geometry", "Geometry", "Geometry"),
                                                                     ("Bound Composite", "Bound Composite", "Bound Composite"),
@@ -365,9 +366,18 @@ class SollumzBoneProperties(PropertyGroup):
     flags: CollectionProperty(type = SollumzBoneFlag)
     ul_flags_index: IntProperty(name = "UIListIndex", default = 0)
 
+class SollumzDrawableDictionaryExportables(PropertyGroup):
+    drawable: PointerProperty(type = bpy.types.Object)
+
+class SollumzDrawableDictionaryProperties(PropertyGroup):
+    exportables: CollectionProperty(type = SollumzDrawableDictionaryExportables)
+    ul_exportablesorder_index: IntProperty(name = "UIListIndex", default = 0)
+
 classes = (
     SollumzBoneFlag,
     SollumzBoneProperties,
+    SollumzDrawableDictionaryExportables,
+    SollumzDrawableDictionaryProperties,
 )
 
 def register():
@@ -375,9 +385,11 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.types.Bone.bone_properties = PointerProperty(type = SollumzBoneProperties)
+    bpy.types.Object.drawable_dictionary_properties = PointerProperty(type = SollumzDrawableDictionaryProperties)
 
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
     
     del bpy.types.Bone.bone_properties
+    del bpy.types.Object.drawable_dictionary_properties
