@@ -839,8 +839,8 @@ class ImportYDD(Operator, ImportHelper):
 
         for vmodel in vmodels:
             vmodel.parent = vmodel_dict_obj
-            exportable = vmodel_dict_obj.drawable_dictionary_properties.exportables.add()
-            exportable.drawable = vmodel_obj
+            exportable = vmodel_dict_obj.drawable_dict_properties.exportables.add()
+            exportable.drawable = vmodel
 
         context.scene.collection.objects.link(vmodel_dict_obj)
 

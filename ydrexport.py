@@ -1,6 +1,7 @@
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from bpy.types import Operator
+from bpy.props import StringProperty
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from xml.dom import minidom
@@ -1207,8 +1208,8 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
 def write_drawable_dictionary(obj, filepath):
     drawable_dictionary_node = Element("DrawableDictionary")
     children = None
-    if len(obj.drawable_dictionary_properties.exportables) > 0:
-        children = [i.drawable for i in obj.drawable_dictionary_properties.exportables]
+    if len(obj.drawable_dict_properties.exportables) > 0:
+        children = [i.drawable for i in obj.drawable_dict_properties.exportables]
     else:
         children = get_obj_children(obj)
 
@@ -1291,6 +1292,12 @@ class ExportYDR(Operator, ExportHelper):
     # ExportHelper mixin class uses this
     filename_ext = ".ydr.xml"
 
+    filter_glob: StringProperty(
+        default="*.ydr.xml",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
+
     def execute(self, context):
         start = datetime.now()
         
@@ -1317,6 +1324,12 @@ class ExportYDD(Operator, ExportHelper):
 
     # ExportHelper mixin class uses this
     filename_ext = ".ydd.xml"
+
+    filter_glob: StringProperty(
+        default="*.ydd.xml",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         start = datetime.now()

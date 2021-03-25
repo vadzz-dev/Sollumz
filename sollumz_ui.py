@@ -32,7 +32,7 @@ class SollumzMainPanel(bpy.types.Panel):
             if(object.sollumtype == "Drawable Dictionary"):
                 box = mainbox.column()
                 box.label(text = "Custom Exportables Order:")
-                properties = object.drawable_dictionary_properties
+                properties = object.drawable_dict_properties
                 index = properties.ul_exportablesorder_index
                 box.template_list("SOLLUMZ_UL_ExportablesOrder", "ExportablesOrder", properties, "exportables", properties, "ul_exportablesorder_index")
                 if len(properties.exportables) > 0:
@@ -227,7 +227,7 @@ class SOLLUMZ_OT_ExportablesOrder_NewItem(Operator):
     bl_label = "Add a new item"
     def execute(self, context): 
         obj = context.active_object
-        obj.drawable_dictionary_properties.exportables.add() 
+        obj.drawable_dict_properties.exportables.add() 
         return {'FINISHED'}
 
 class SOLLUMZ_OT_ExportablesOrder_DeleteItem(Operator): 
@@ -235,15 +235,15 @@ class SOLLUMZ_OT_ExportablesOrder_DeleteItem(Operator):
     bl_label = "Deletes an item" 
     @classmethod 
     def poll(cls, context): 
-        return context.active_object.drawable_dictionary_properties.exportables
+        return context.active_object.drawable_dict_properties.exportables
 
     def execute(self, context): 
         obj = context.active_object
 
-        my_list = obj.drawable_dictionary_properties.exportables
-        index = obj.drawable_dictionary_properties.ul_exportablesorder_index
+        my_list = obj.drawable_dict_properties.exportables
+        index = obj.drawable_dict_properties.ul_exportablesorder_index
         my_list.remove(index) 
-        obj.drawable_dictionary_properties.ul_exportablesorder_index = min(max(0, index - 1), len(my_list) - 1) 
+        obj.drawable_dict_properties.ul_exportablesorder_index = min(max(0, index - 1), len(my_list) - 1) 
         return {'FINISHED'}
 
 class SOLLUMZ_OT_ExportablesOrder_MoveItem(Operator):
@@ -257,23 +257,23 @@ class SOLLUMZ_OT_ExportablesOrder_MoveItem(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.active_object.drawable_dictionary_properties.exportables
+        return context.active_object.drawable_dict_properties.exportables
 
     def move_index(self, context):
         """ Move index of an item render queue while clamping it. """
         obj = context.active_object
 
-        index = obj.drawable_dictionary_properties.ul_exportablesorder_index
-        list_length = len(obj.drawable_dictionary_properties.exportables) - 1  # (index starts at 0)
+        index = obj.drawable_dict_properties.ul_exportablesorder_index
+        list_length = len(obj.drawable_dict_properties.exportables) - 1  # (index starts at 0)
         new_index = index + (-1 if self.direction == 'UP' else 1)
 
-        obj.drawable_dictionary_properties.ul_exportablesorder_index = max(0, min(new_index, list_length))
+        obj.drawable_dict_properties.ul_exportablesorder_index = max(0, min(new_index, list_length))
 
     def execute(self, context):
         obj = context.active_object
 
-        my_list = obj.drawable_dictionary_properties.exportables
-        index = obj.drawable_dictionary_properties.ul_exportablesorder_index
+        my_list = obj.drawable_dict_properties.exportables
+        index = obj.drawable_dict_properties.ul_exportablesorder_index
 
         neighbor = index + (-1 if self.direction == 'UP' else 1)
         my_list.move(neighbor, index)
@@ -287,7 +287,7 @@ class SOLLUMZ_OT_ExportablesOrder_Copy(Operator):
     def execute(self, context): 
         obj = context.active_object
         for c in obj.children:
-            exportable = obj.drawable_dictionary_properties.exportables.add()
+            exportable = obj.drawable_dict_properties.exportables.add()
             exportable.drawable = c
 
         return {'FINISHED'}
