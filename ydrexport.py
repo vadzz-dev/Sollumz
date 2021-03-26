@@ -164,20 +164,37 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
             vertex_group_elements = mesh.vertices[vi].groups
 
             if len(vertex_group_elements) > 0:
-                blendw_list = deque()
-                blendi_list = deque()
+                blendw_list = []
+                blendi_list = []
+                valid_weights = 0
+                total_weights = 0
+                min_weights = 255
+                min_weights_position = -1
                 for element in vertex_group_elements:
-                    if (element.weight > 0.0):
-                        blendw_list.append(round(element.weight * 255))
+                    if (element.weight > 0.0 and valid_weights < 4):
+                        weight = round(element.weight * 255)
+                        blendw_list.append(weight)
                         vertex_group = vertex_groups[element.group]
                         bone_index = bones_index_dict[vertex_group.name]
                         blendi_list.append(bone_index)
+                        if (min_weights > weight):
+                            min_weights_position = valid_weights
+                            min_weights = weight
+
+                        valid_weights += 1
+                        total_weights += weight
 
                 #fill the positions where there are no weights
-                if len(blendw_list) < 4:
-                    for i in range(4 - len(blendw_list)):
+                if valid_weights < 4:
+                    for i in range(4 - valid_weights):
                         blendw_list.append(0)
                         blendi_list.append(0)
+
+                # weights verification stuff
+                # wtf rockstar
+                # why do you even use int for weights
+                if valid_weights > 0 and min_weights_position != -1:
+                    blendw_list[min_weights_position] = blendw_list[min_weights_position] + (255 - total_weights)
 
                 blendw[vi] = ' '.join(str(i) for i in blendw_list)
                 blendi[vi] = ' '.join(str(i) for i in blendi_list)
@@ -480,8 +497,8 @@ def write_model_node(objs, materials, bones):
     depsgraph = bpy.context.evaluated_depsgraph_get()
     for obj in objs:
         obj_eval = obj.evaluated_get(depsgraph)
-        model = bpy.data.meshes.new_from_object(obj_eval)
-        # model = obj.data
+        # model = bpy.data.meshes.new_from_object(obj_eval)
+        model = obj.data
         
         i_node = Element("Item")
         
@@ -530,7 +547,8 @@ def write_model_node(objs, materials, bones):
         
         ib_node = Element("IndexBuffer")
         data_node = Element("Data")
-        data_node.text = get_index_string(model)
+        mesh = obj_eval.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
+        data_node.text = get_index_string(mesh)
         
         ib_node.append(data_node)
         
@@ -934,13 +952,13 @@ def write_skeleton_node(obj):
 
         if bone.parent != None:
             bone_node_parent_index.set("value", str(bone.parent["BONE_INDEX"]))
-
-            sibling = bone.parent.children[0]["BONE_INDEX"]
-            if sibling == bone["BONE_INDEX"]:
-                if len(bone.parent.children) > 1:
-                    sibling = bone.parent.children[1]["BONE_INDEX"]
-                else:
-                    sibling = -1
+            children = bone.parent.children
+            sibling = -1
+            if len(children) > 1:
+                for i, child in enumerate(children):
+                    if child["BONE_INDEX"] == bone["BONE_INDEX"] and i + 1 < len(children):
+                        sibling = children[i + 1]["BONE_INDEX"]
+                        break
 
             bone_node_sibling_index.set("value", str(sibling))
         else:
