@@ -97,8 +97,8 @@ def process_uv(uv):
     return [u, v]
 
 def get_vertex_string(obj, vlayout, bones, depsgraph):
-    # mesh = bpy.data.meshes.new_from_object(obj)
-    mesh = obj.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
+    mesh = bpy.data.meshes.new_from_object(obj)
+    # mesh = obj.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
     # mesh = obj.data
 
     allstrings = deque()
@@ -171,8 +171,9 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
                 min_weights = 255
                 min_weights_position = -1
                 for element in vertex_group_elements:
-                    if (element.weight > 0.0 and valid_weights < 4):
-                        weight = round(element.weight * 255)
+                    # 1/255 = 0.0039 the minimal weight for one vertex group
+                    weight = round(element.weight * 255)
+                    if (weight > 0 and valid_weights < 4):
                         blendw_list.append(weight)
                         vertex_group = vertex_groups[element.group]
                         bone_index = bones_index_dict[vertex_group.name]
@@ -464,10 +465,14 @@ def get_vertex_layout(shader):
     elif shader == "vehicle_detail2.sps": return PBBNCTT
     elif shader == "vehicle_vehglass_inner.sps": return PBBNCTT
     elif shader == "ped.sps": return PBBNCCTTX
+    elif shader == "ped_alpha.sps": return PBBNCCTTX
     elif shader == "ped_default.sps": return PBBNCCT
     elif shader == "ped_emissive.sps": return PBBNCCTTX
     elif shader == "ped_decal_expensive.sps": return PBBNCCTTX
     elif shader == "ped_hair_spiked.sps": return PBBNCCTX
+    elif shader == "ped_hair_cutout_alpha.sps": return PBBNCCTX
+    elif shader == "ped_fur.sps": return PBBNCCTTX
+    elif shader == "ped_wrinkle_cs.sps": return PBBNCCTTX
 
     print('Unknown shader: ', shader)
 
@@ -547,9 +552,10 @@ def write_model_node(objs, materials, bones):
         
         ib_node = Element("IndexBuffer")
         data_node = Element("Data")
-        mesh = obj_eval.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
+        mesh = obj_eval.to_mesh()
         data_node.text = get_index_string(mesh)
-        
+        obj_eval.to_mesh_clear()
+
         ib_node.append(data_node)
         
         for p in vlayout:
