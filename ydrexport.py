@@ -97,7 +97,7 @@ def process_uv(uv):
     return [u, v]
 
 def get_vertex_string(obj, vlayout, bones, depsgraph):
-    mesh = bpy.data.meshes.new_from_object(obj)
+    mesh = bpy.data.meshes.new_from_object(obj, preserve_all_data_layers=True, depsgraph=depsgraph)
     # mesh = obj.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
     # mesh = obj.data
 
