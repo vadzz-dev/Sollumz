@@ -1,5 +1,6 @@
 import bpy
 import os 
+from .tools import meshgen as MeshGen
 from bpy.types import PropertyGroup, Panel, UIList, Operator
 from bpy.props import CollectionProperty, PointerProperty, StringProperty, IntProperty, BoolProperty, FloatProperty
 
@@ -22,7 +23,7 @@ class SollumzMainPanel(bpy.types.Panel):
             
             textbox = mainbox.box()
             textbox.prop(object, "name", text = "Object Name")
-            
+
             subbox = mainbox.box() 
             subbox.props_enum(object, "sollumtype")
             
@@ -46,7 +47,6 @@ class SollumzMainPanel(bpy.types.Panel):
                 row.operator('sollumz_exportablesorder.copy', text='Copy')
 
             if(object.sollumtype == "Drawable"):
-                box = mainbox.box()
                 row = box.row()
                 box.prop(object, "drawble_distance_high")
                 box.prop(object, "drawble_distance_medium")
@@ -55,9 +55,27 @@ class SollumzMainPanel(bpy.types.Panel):
                 box.prop(object, "drawble_distance_vlow")
 
             if(object.sollumtype == "Geometry"):
-                box = mainbox.box()
                 box.prop(object, "level_of_detail")
-                box.prop(object, "mask")
+                box.prop(object, "mask")   
+
+            if(object.sollumtype == "Bound Geometry"):
+                box.prop(object, "bounds_bvh")
+
+            if(object.sollumtype == "Bound Capsule"):
+                box.prop(object, "bounds_length")
+                box.prop(object, "bounds_radius")
+
+            if(object.sollumtype == "Bound Cylinder"):
+                box.prop(object, "bounds_length")
+                box.prop(object, "bounds_radius")
+
+            if(object.sollumtype == "Bound Disc"):
+                box.prop(object, "bounds_length")
+                box.prop(object, "bounds_radius")
+
+            if(object.sollumtype == "Bound Sphere"):
+                box.prop(object, "bounds_radius")
+
         
         box = layout.box()
         box.label(text = "Tools") 
@@ -77,6 +95,19 @@ def param_name_to_title(pname):
     title = d.title() #+ a[1].upper() dont add back the X, Y, Z, W
     
     return title
+
+def bounds_update(self, context):
+    if(self.sollumtype == "Bound Sphere"):
+        MeshGen.BoundSphere(mesh=self.data, radius=self.bounds_radius)
+
+    if(self.sollumtype == "Bound Cylinder"):
+        MeshGen.BoundCylinder(mesh=self.data, radius=self.bounds_radius, length=self.bounds_length)
+
+    if(self.sollumtype == "Bound Disc"):
+        MeshGen.BoundDisc(mesh=self.data, radius=self.bounds_radius, length=self.bounds_length)
+
+    if(self.sollumtype == "Bound Capsule"):
+        MeshGen.BoundCapsule(mesh=self.data, radius=self.bounds_radius, length=self.bounds_length)
 
 class SollumzMaterialPanel(bpy.types.Panel):
     bl_label = "Sollumz Material Panel"
@@ -204,7 +235,38 @@ class SollumzMaterialPanel(bpy.types.Panel):
                       
                 parambox.prop(n.outputs[0], "default_value", text = n.name[-1].upper())
                 
-                prevname = n.name 
+                prevname = n.name        
+            
+#sollum properties
+bpy.types.Scene.last_created_material = bpy.props.PointerProperty(type=bpy.types.Material)
+bpy.types.Object.sollumtype = bpy.props.EnumProperty(
+                                                        name = "Vtype", 
+                                                        default = "None",
+                                                        items = [
+                                                                    ("None", "None", "None"),
+                                                                    ("Fragment", "Fragment", "Fragment"),
+                                                                    ("Drawable", "Drawable", "Drawable"), 
+                                                                    ("Geometry", "Geometry", "Geometry"),
+                                                                    ("Bound Composite", "Bound Composite", "Bound Composite"),
+                                                                    ("Bound Box", "Bound Box", "Bound Box"),
+                                                                    ("Bound Geometry", "Bound Geometry", "Bound Geometry"), 
+                                                                    ("Bound Sphere", "Bound Sphere", "Bound Sphere"),
+                                                                    ("Bound Capsule", "Bound Capsule", "Bound Capsule"),
+                                                                    ("Bound Cylinder", "Bound Cylinder", "Bound Cylinder"),
+                                                                    ("Bound Disc", "Bound Disc", "Bound Disc")])
+                                                                    
+bpy.types.Object.level_of_detail = bpy.props.EnumProperty(name = "Level Of Detail", items = [("High", "High", "High"), ("Medium", "Medium", "Medium"), ("Low", "Low", "Low"), ("Very Low", "Very Low", "Very Low")])
+bpy.types.Object.mask = bpy.props.IntProperty(name = "Mask", default = 255)
+bpy.types.Object.drawble_distance_high = bpy.props.FloatProperty(name = "Lod Distance High", default = 9998.0, min = 0, max = 100000)
+bpy.types.Object.drawble_distance_medium = bpy.props.FloatProperty(name = "Lod Distance Medium", default = 9998.0, min = 0, max = 100000)
+bpy.types.Object.drawble_distance_low = bpy.props.FloatProperty(name = "Lod Distance Low", default = 9998.0, min = 0, max = 100000)
+bpy.types.Object.drawble_distance_vlow = bpy.props.FloatProperty(name = "Lod Distance vlow", default = 9998.0, min = 0, max = 100000)
+
+bpy.types.Object.bounds_length = bpy.props.FloatProperty(name="Length", default=1, min=0, max=100, update=bounds_update)
+bpy.types.Object.bounds_radius = bpy.props.FloatProperty(name="Radius", default=1, min=0, max=100, update=bounds_update)
+bpy.types.Object.bounds_rings = bpy.props.IntProperty(name="Rings", default=6, min=1, max=100, update=bounds_update)
+bpy.types.Object.bounds_segments = bpy.props.IntProperty(name="Segments", default=12, min=3, max=100, update=bounds_update)
+bpy.types.Object.bounds_bvh = bpy.props.BoolProperty(name="BVH (Bounding volume hierarchy)", default=False, update=bounds_update)
 
 class SOLLUMZ_UL_ExportablesOrder(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index): 
