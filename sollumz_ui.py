@@ -26,11 +26,10 @@ class SollumzMainPanel(bpy.types.Panel):
             subbox = mainbox.box() 
             subbox.props_enum(object, "sollumtype")
             
-            if(object.sollumtype == "Fragment"):
-                box = mainbox.box()
+            box = mainbox.box()
 
             if(object.sollumtype == "Drawable Dictionary"):
-                box = mainbox.column()
+                # box = mainbox.column()
                 box.label(text = "Custom Exportables Order:")
                 properties = object.drawable_dict_properties
                 index = properties.ul_exportablesorder_index

@@ -48,6 +48,9 @@ def order_vertex_list(list, vlayout):
     for i in range(len(vlayout)):
         layout_key = layout_map[vlayout[i]]
         if layout_key != None:
+            if list[layout_key] == None:
+                raise TypeError("Missing layout item " + vlayout[i])
+
             newlist.append(list[layout_key])
         else:
             print('Incorrect layout element', vlayout[i])
@@ -59,14 +62,6 @@ def order_vertex_list(list, vlayout):
 
 def vector_tostring(vector):
     try:
-        # string = ""
-        # string += str(vector.x) + " "   
-        # string += str(vector.y)
-        # if(hasattr(vector, "z")):   
-        #     string += " " + str(vector.z) 
-        # else:
-        #     string += " "
-        
         string = [str(vector.x), str(vector.y)]
         if(hasattr(vector, "z")):
             string.append(str(vector.z))
@@ -117,7 +112,11 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
     for i in range(6):
         texcoords[i] = [None] * vertamount       
     
-    mesh.calc_normals_split()
+    if mesh.has_custom_normals:
+        mesh.calc_normals_split()
+    else:
+        mesh.calc_normals()
+
     mesh.calc_tangents()
 
     vertex_groups = obj.vertex_groups
@@ -158,7 +157,8 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
             clr[vi] = clr0_layer.data[loop_index].color
             clr1[vi] = clr1_layer.data[loop_index].color
             tangents[vi] = mesh.loops[loop_index].tangent.to_4d()
-            #https://github.com/labnation/MonoGame/blob/master/MonoGame.Framework.Content.Pipeline/Graphics/MeshHelper.cs#L298
+            # https://github.com/labnation/MonoGame/blob/master/MonoGame.Framework.Content.Pipeline/Graphics/MeshHelper.cs#L298
+            # bitangent = bitangent_sign * cross(normal, tangent)
             tangents[vi].w = mesh.loops[loop_index].bitangent_sign
             #FIXME: one vert can only be influenced by 4 weights at most
             vertex_group_elements = mesh.vertices[vi].groups
@@ -171,12 +171,12 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
                 min_weights = 255
                 min_weights_position = -1
                 for element in vertex_group_elements:
+                    vertex_group = vertex_groups[element.group]
+                    bone_index = bones_index_dict.get(vertex_group.name, -1)
                     # 1/255 = 0.0039 the minimal weight for one vertex group
                     weight = round(element.weight * 255)
-                    if (weight > 0 and valid_weights < 4):
+                    if (vertex_group.lock_weight == False and bone_index != -1 and weight > 0 and valid_weights < 4):
                         blendw_list.append(weight)
-                        vertex_group = vertex_groups[element.group]
-                        bone_index = bones_index_dict[vertex_group.name]
                         blendi_list.append(bone_index)
                         if (min_weights > weight):
                             min_weights_position = valid_weights
@@ -215,7 +215,7 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
         tlist.append(vector_tostring(texcoords[3][i]))
         tlist.append(vector_tostring(texcoords[4][i]))
         tlist.append(vector_tostring(texcoords[5][i]))
-        tlist.append(vector_tostring(tangents[vi]))
+        tlist.append(vector_tostring(tangents[i]))
         tlist.append(blendw[i])
         tlist.append(blendi[i])
         
@@ -223,11 +223,9 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
 
         vstring = deque(" " * 5)
         for l in layoutlist:
-            if(l != None):
-                vstring.append(l)
-                vstring.append(" " * 3)
-            else:
-                pass
+            vstring.append(l)
+            vstring.append(" " * 3)
+
         vstring.append("\n")
         allstrings.append("".join(vstring))
     
@@ -471,7 +469,7 @@ def get_vertex_layout(shader):
     elif shader == "ped_decal_expensive.sps": return PBBNCCTTX
     elif shader == "ped_hair_spiked.sps": return PBBNCCTX
     elif shader == "ped_hair_cutout_alpha.sps": return PBBNCCTX
-    elif shader == "ped_fur.sps": return PBBNCCTTX
+    elif shader == "ped_fur.sps": return PBBNCCTX
     elif shader == "ped_wrinkle_cs.sps": return PBBNCCTTX
 
     print('Unknown shader: ', shader)
@@ -499,11 +497,13 @@ def write_model_node(objs, materials, bones):
         unk1_node.set("value", "0")
 
     geo_node = Element("Geometries")
+
+    # depsgraph stuff, for the purpose of auto-applying modifiers on exporting
     depsgraph = bpy.context.evaluated_depsgraph_get()
     for obj in objs:
         obj_eval = obj.evaluated_get(depsgraph)
-        # model = bpy.data.meshes.new_from_object(obj_eval)
-        model = obj.data
+        model = bpy.data.meshes.new_from_object(obj_eval, preserve_all_data_layers=True, depsgraph=depsgraph)
+        #model = obj.data
         
         i_node = Element("Item")
         
@@ -552,9 +552,7 @@ def write_model_node(objs, materials, bones):
         
         ib_node = Element("IndexBuffer")
         data_node = Element("Data")
-        mesh = obj_eval.to_mesh()
-        data_node.text = get_index_string(mesh)
-        obj_eval.to_mesh_clear()
+        data_node.text = get_index_string(model)
 
         ib_node.append(data_node)
         
@@ -744,8 +742,10 @@ def write_tditem_node(exportpath, mat):
                     
                     txtpath = node.image.filepath
                     dstpath = os.path.dirname(exportpath) + foldername + "\\" + os.path.basename(node.image.filepath)
-                    
-                    shutil.copyfile(txtpath, dstpath)
+
+                    # SameFileError
+                    if txtpath != dstpath:
+                        shutil.copyfile(txtpath, dstpath)
                 else:
                     print("Missing Embedded Texture, please supply texture! The texture will not be copied to the texture folder until entered!")
 
@@ -908,6 +908,8 @@ def write_skeleton_node(obj):
 
     skeleton_node = Element("Skeleton")
 
+    #TODO: the current implementation works but IMHO there should be something more meaningful than "0"
+    #as long as it doesn't break in game
     unk1c_node = Element("Unknown1C")
     unk1c_node.set("value", "16777216")
 
@@ -1134,7 +1136,7 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
     
     drawable_node = Element(root_name)
     name_node = Element("Name")
-    name_node.text = obj.name
+    name_node.text = obj.name.split(".")[0]
     
     bsc_node = Element("BoundingSphereCenter")
     bsc_node.set("x", str(bbsphere[0][0]))
@@ -1254,20 +1256,20 @@ def write_ydr_xml(context, filepath):
     
     root = None
 
-    objects = bpy.context.scene.collection.objects
+    # objects = bpy.context.scene.collection.objects
+    active_object = context.active_object
 
-    if(len(objects) == 0):
-        return "No objects in scene for Sollumz export"
+    # if(len(objects) == 0):
+    #     return "No objects in scene for Sollumz export"
     
     #select the object first?
-    for obj in objects:
-        if(obj.sollumtype == "Drawable"):
-            root = write_drawable(obj, filepath)
-            try: 
-                print("*** Complete ***")
-            except:
-                print(str(Exception))
-                return str(Exception)
+    if(active_object.sollumtype == "Drawable"):
+        root = write_drawable(active_object, filepath)
+        try: 
+            print("*** Complete ***")
+        except:
+            print(str(Exception))
+            return str(Exception)
 
     if(root == None):
         return "No Sollumz Drawable found to export"
@@ -1283,20 +1285,19 @@ def write_ydd_xml(context, filepath):
     
     root = None
 
-    objects = bpy.context.scene.collection.objects
+    active_object = context.active_object
 
-    if(len(objects) == 0):
-        return "No objects in scene for Sollumz export"
+    # if(len(objects) == 0):
+    #     return "No objects in scene for Sollumz export"
     
     #select the object first?
-    for obj in objects:
-        if(obj.sollumtype == "Drawable Dictionary"):
-            root = write_drawable_dictionary(obj, filepath)
-            try: 
-                print("*** Complete ***")
-            except:
-                print(str(Exception))
-                return str(Exception)
+    if(active_object.sollumtype == "Drawable Dictionary"):
+        root = write_drawable_dictionary(active_object, filepath)
+        try: 
+            print("*** Complete ***")
+        except:
+            print(str(Exception))
+            return str(Exception)
 
     if(root == None):
         return "No Sollumz Drawable found to export"

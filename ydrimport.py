@@ -588,7 +588,7 @@ def read_bones(self, context, filepath, root):
     flags_list = []
     # LimitRotation and Unk0 have their special meanings, can be deduced if needed when exporting
     flags_restricted = set(["LimitRotation", "Unk0"])
-    drawable_name = root.find("Name").text
+    drawable_name = root.find("Name").text.split(".")[0]
     bones_node = skeleton_node.find("Bones")
     armature = context.object
     bpy.ops.object.mode_set(mode='EDIT')
