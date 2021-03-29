@@ -174,7 +174,7 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
                 max_weights_position = -1
 
                 for element in vertex_group_elements:
-                    if element.group < 0 or element.group >= len(vertex_group_elements):
+                    if element.group >= len(vertex_groups):
                         continue
 
                     vertex_group = vertex_groups[element.group]
