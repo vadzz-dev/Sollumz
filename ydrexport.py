@@ -208,7 +208,7 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
             else:
                 blendw[vi] = "0 0 255 0"
                 blendi[vi] = "0 0 0 0"
-
+            
     for i in range(len(vertices)):
         tlist = deque()
         tlist.append(vector_tostring(vertices[i])) 
@@ -548,7 +548,9 @@ def write_model_node(objs, materials, bones):
         vblayout_node.set("type", "GTAV1")
         
         if(shader.sollumtype != "GTA"):
-            return
+            print("Error Material Type Is Not GTA!!")
+            return m_node
+        
         print('Processing shader', shader_index, shader.name)
         vlayout = get_vertex_layout(shader.name)
 
@@ -748,7 +750,6 @@ def write_tditem_node(exportpath, mat):
                     
                     txtpath = node.image.filepath
                     dstpath = os.path.dirname(exportpath) + foldername + "\\" + os.path.basename(node.image.filepath)
-
                     # SameFileError
                     if txtpath != dstpath:
                         shutil.copyfile(txtpath, dstpath)
