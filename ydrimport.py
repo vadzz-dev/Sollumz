@@ -171,7 +171,7 @@ def create_material(filepath, td_node, shader):
             texture_dictionary.append(i)
     
     shadern_node = shader.find("FileName")
-    if shadern_node:
+    if shadern_node is not None:
         shadern = shadern_node.text
     else:
         shadern = "default.sps"
