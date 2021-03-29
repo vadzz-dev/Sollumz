@@ -21,9 +21,11 @@ def prettify(elem):
 
 def get_obj_children(obj):
     children = [] 
-    for ob in bpy.data.objects: 
-        if ob.parent == obj: 
+    objects = bpy.context.scene.objects
+    for ob in obj.children: 
+        if objects.get(ob.name):
             children.append(ob) 
+
     return children 
 
 def order_vertex_list(list, vlayout):
@@ -170,7 +172,11 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
                 total_weights = 0
                 max_weights = 0
                 max_weights_position = -1
+
                 for element in vertex_group_elements:
+                    if element.group < 0 or element.group >= len(vertex_group_elements):
+                        continue
+
                     vertex_group = vertex_groups[element.group]
                     bone_index = bones_index_dict.get(vertex_group.name, -1)
                     # 1/255 = 0.0039 the minimal weight for one vertex group

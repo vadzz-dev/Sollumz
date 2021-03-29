@@ -302,9 +302,11 @@ class SOLLUMZ_OT_ExportablesOrder_Copy(Operator):
     bl_label = "Copy"
     def execute(self, context): 
         obj = context.active_object
+        objects = bpy.context.scene.objects
         for c in obj.children:
-            exportable = obj.drawable_dict_properties.exportables.add()
-            exportable.drawable = c
+            if objects.get(c.name):
+                exportable = obj.drawable_dict_properties.exportables.add()
+                exportable.drawable = c
 
         return {'FINISHED'}
 
