@@ -1,5 +1,6 @@
 import bpy
 import os 
+from .tools import meshgen as MeshGen
 from bpy.types import PropertyGroup, Panel, UIList, Operator
 from bpy.props import CollectionProperty, PointerProperty, StringProperty, IntProperty, BoolProperty, FloatProperty
 
@@ -40,14 +41,14 @@ class SollumzMainPanel(bpy.types.Panel):
 
             if(object.sollumtype == "Drawable Dictionary"):
                 # box = mainbox.column()
-                box.label(text = "Custom Exportables Order:")
+                subbox.label(text = "Custom Exportables Order:")
                 properties = object.drawable_dict_properties
                 index = properties.ul_exportablesorder_index
-                box.template_list("SOLLUMZ_UL_ExportablesOrder", "ExportablesOrder", properties, "exportables", properties, "ul_exportablesorder_index")
+                subbox.template_list("SOLLUMZ_UL_ExportablesOrder", "ExportablesOrder", properties, "exportables", properties, "ul_exportablesorder_index")
                 if len(properties.exportables) > 0:
-                    box.prop(properties.exportables[index], "drawable", text="Drawable")
+                    subbox.prop(properties.exportables[index], "drawable", text="Drawable")
                 
-                row = mainbox.row()
+                row = subbox.row()
                 row.operator('sollumz_exportablesorder.new_item', text='New')
                 row.operator('sollumz_exportablesorder.delete_item', text='Delete')
                 row.operator('sollumz_exportablesorder.move_item', text='Up').direction = 'UP'

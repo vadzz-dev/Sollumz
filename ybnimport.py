@@ -531,7 +531,9 @@ def read_composite_info(name, bounds):
     return cobj
     
 def read_bounds(name, bounds):
-    
+    if bounds is None:
+        return None
+
     type = bounds.attrib["type"]
     
     #bobjs = []

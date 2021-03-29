@@ -377,7 +377,7 @@ def create_model(self, context, index_buffer, vertices, filepath, name, bones):
         #for idx in poly.loop_indicies:
             #mesh.loops[i].tangent = tangents[i]    
 
-    obj = bpy.data.objects.new(name.replace(".#dr", "") + "_mesh", mesh)
+    obj = bpy.data.objects.new(name.replace(".#dr", "") + ".mesh", mesh)
     
     #load weights
     # 256 - possibly the maximum of bones?
@@ -862,18 +862,18 @@ class ImportYDD(Operator, ImportHelper):
 
         context.scene.collection.objects.link(vmodel_dict_obj)
 
-        if (armature_with_bones_obj != None):
-            for obj in mod_objs:
-                mod = obj.modifiers.new("Armature", 'ARMATURE')
-                mod.object = armature_with_bones_obj
+        if (armature_with_bones_obj == None):
+            armature_with_bones_obj = vmodels[0]
 
-            bpy.ops.object.select_all(action='DESELECT')
-            armature_temp_obj.select_set(True)
-            armature_with_bones_obj.select_set(True)
-            context.view_layer.objects.active = armature_with_bones_obj
-            bpy.ops.object.join()
-        else:
-            bpy.data.objects.remove(armature_temp_obj, do_unlink=True)
+        for obj in mod_objs:
+            mod = obj.modifiers.new("Armature", 'ARMATURE')
+            mod.object = armature_with_bones_obj
+
+        bpy.ops.object.select_all(action='DESELECT')
+        armature_temp_obj.select_set(True)
+        armature_with_bones_obj.select_set(True)
+        context.view_layer.objects.active = armature_with_bones_obj
+        bpy.ops.object.join()
 
         finished = time.time()
         
