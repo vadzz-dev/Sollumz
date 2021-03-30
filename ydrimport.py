@@ -690,18 +690,6 @@ def read_ydr_shaders(self, context, filepath, root):
     shaders = read_shader_info(self, context, filepath, shd_node, td_node)
     return shaders
 
-def read_ydr_shaders(self, context, filepath, root):
-    shd_group = root.find("ShaderGroup")
-
-    if not shd_group:
-        return None
-
-    shd_node = shd_group.find("Shaders")
-    td_node = shd_group.find("TextureDictionary")  
-
-    shaders = read_shader_info(self, context, filepath, shd_node, td_node)
-    return shaders
-
 def read_ydr_xml(self, context, filepath, root, shaders, bones=None):
 
     fname = os.path.basename(filepath)
@@ -896,6 +884,8 @@ class ImportYDD(Operator, ImportHelper):
 
         for vmodel in vmodels:
             vmodel.parent = vmodel_dict_obj
+            exportable = vmodel_dict_obj.drawable_dict_properties.exportables.add()
+            exportable.drawable = vmodel
         
         context.scene.collection.objects.link(vmodel_dict_obj)
 
