@@ -791,7 +791,7 @@ class ImportYDR(Operator, ImportHelper):
         
         bound_obj = read_ybn_xml(context, self.filepath, root)
         
-        if(bound_obj != None):
+        if bound_obj is not None:
             bound_obj.parent = vmodel_obj
             context.scene.collection.objects.link(bound_obj)
         
