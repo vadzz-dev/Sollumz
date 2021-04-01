@@ -27,22 +27,6 @@ class v_vertex:
         self.BlendWeights = bw
         self.BlendIndices = bi
 
-class Drawable:
-    root = None
-    name = "Drawable"
-    lods = None
-    shaders = None
-    bones = None
-    objects = None
-
-    def __init__(self, root, name, lods, shaders, bones, objects):
-        self.root = root
-        self.name = name
-        self.lods = lods
-        self.shaders = shaders
-        self.bones = bones
-        self.objects = objects
-
 def get_related_texture(texture_dictionary, img_name):
 
     props = None 
@@ -726,20 +710,14 @@ def read_ydr_xml(self, context, filepath, root, shaders, bones=None):
         all_objects.append(o)
     for o in low_objects:
         all_objects.append(o)
-
-    #set sollum properties 
-    dd_high = float(root.find("LodDistHigh").attrib["value"])
-    dd_med = float(root.find("LodDistMed").attrib["value"])
-    dd_low = float(root.find("LodDistLow").attrib["value"])
-    dd_vlow = float(root.find("LodDistVlow").attrib["value"])
-
-    return Drawable(root, model_name, [dd_high, dd_med, dd_low, dd_vlow], shaders, bones, all_objects)
+    return all_objects
 
 def read_ydd_xml(self, context, filepath, root):
 
-    drawables = []
+    all_objects = []
     bones = None
     drawable_with_bones_name = None
+
     # we need to get the name of that particular drawable and its bones before loading other data
     for ydr in root:
         bones, drawable_with_bones_name = read_bones(self, context, filepath, ydr)
@@ -748,10 +726,10 @@ def read_ydd_xml(self, context, filepath, root):
 
     for ydr in root:
         shaders = read_ydr_shaders(self, context, filepath, ydr)
-        drawable = read_ydr_xml(self, context, filepath, ydr, shaders, bones)
-        drawables.append(drawable)
+        allobjs = read_ydr_xml(self, context, filepath, ydr, shaders, bones)
+        all_objects.append(allobjs)
 
-    return drawables, drawable_with_bones_name
+    return all_objects, drawable_with_bones_name
 
 class ImportYDR(Operator, ImportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
@@ -780,14 +758,13 @@ class ImportYDR(Operator, ImportHelper):
         context.view_layer.objects.active = vmodel_obj
 
         shaders = read_ydr_shaders(self, context, self.filepath, root)
-        drawable = read_ydr_xml(self, context, self.filepath, root, shaders)
+        ydr_objs = read_ydr_xml(self, context, self.filepath, root, shaders)
 
-        if drawable.objects is not None:
-            for obj in drawable.objects:
-                context.scene.collection.objects.link(obj)
-                obj.parent = vmodel_obj
-                mod = obj.modifiers.new("Armature", 'ARMATURE')
-                mod.object = vmodel_obj
+        for obj in ydr_objs:
+            context.scene.collection.objects.link(obj)
+            obj.parent = vmodel_obj
+            mod = obj.modifiers.new("Armature", 'ARMATURE')
+            mod.object = vmodel_obj
         
         bound_obj = read_ybn_xml(context, self.filepath, root)
         
@@ -802,10 +779,10 @@ class ImportYDR(Operator, ImportHelper):
         dd_vlow = float(root.find("LodDistVlow").attrib["value"])
         
         vmodel_obj.sollumtype = "Drawable"
-        vmodel_obj.drawble_distance_high = drawable.lods[0]
-        vmodel_obj.drawble_distance_medium = drawable.lods[1]
-        vmodel_obj.drawble_distance_low = drawable.lods[2]
-        vmodel_obj.drawble_distance_vlow = drawable.lods[3]
+        vmodel_obj.drawble_distance_high = dd_high 
+        vmodel_obj.drawble_distance_medium = dd_med
+        vmodel_obj.drawble_distance_low = dd_low
+        vmodel_obj.drawble_distance_vlow = dd_vlow
 
         finished = time.time()
         
@@ -851,20 +828,20 @@ class ImportYDD(Operator, ImportHelper):
         armature_with_bones_obj = None
 
         mod_objs = []
-        drawable_dict, drawable_with_bones_name = read_ydd_xml(self, context, self.filepath, root)
-        for drawable in drawable_dict:
-            armature = bpy.data.armatures.new(drawable.name + ".skel")
+        ydd_objs, drawable_with_bones_name = read_ydd_xml(self, context, self.filepath, root)
+        for ydd in ydd_objs:
+            drawable_name = ydd[0].name.split('.')[0][:-5]
+            armature = bpy.data.armatures.new(drawable_name + ".skel")
             # mesh has "_mesh" at the end of its name, so remove that for the parented armature
-            vmodel_obj = bpy.data.objects.new(drawable.name, armature)
+            vmodel_obj = bpy.data.objects.new(drawable_name, armature)
             context.scene.collection.objects.link(vmodel_obj)
-            if (armature_with_bones_obj == None and drawable_with_bones_name != None and drawable.name == drawable_with_bones_name):
+            if (armature_with_bones_obj == None and drawable_with_bones_name != None and drawable_name == drawable_with_bones_name):
                 armature_with_bones_obj = vmodel_obj
 
-            if drawable.objects is not None:
-                for obj in drawable.objects:
-                    context.scene.collection.objects.link(obj)
-                    obj.parent = vmodel_obj
-                    mod_objs.append(obj)
+            for obj in ydd:
+                context.scene.collection.objects.link(obj)
+                obj.parent = vmodel_obj
+                mod_objs.append(obj)    
         
             for ydr in root:
                 bound_obj = read_ybn_xml(context, self.filepath, ydr)
@@ -873,10 +850,6 @@ class ImportYDD(Operator, ImportHelper):
                     context.scene.collection.link(bound_obj)
                     
             vmodel_obj.sollumtype = "Drawable"
-            vmodel_obj.drawble_distance_high = drawable.lods[0]
-            vmodel_obj.drawble_distance_medium = drawable.lods[1]
-            vmodel_obj.drawble_distance_low = drawable.lods[2]
-            vmodel_obj.drawble_distance_vlow = drawable.lods[3]
             vmodels.append(vmodel_obj)
         
         vmodel_dict_obj = bpy.data.objects.new(name, None)
@@ -889,18 +862,18 @@ class ImportYDD(Operator, ImportHelper):
         
         context.scene.collection.objects.link(vmodel_dict_obj)
 
-        if (armature_with_bones_obj != None):
-            for obj in mod_objs:
-                mod = obj.modifiers.new("Armature", 'ARMATURE')
-                mod.object = armature_with_bones_obj
+        if (armature_with_bones_obj == None):
+            armature_with_bones_obj = vmodels[0]
 
-            bpy.ops.object.select_all(action='DESELECT')
-            armature_temp_obj.select_set(True)
-            armature_with_bones_obj.select_set(True)
-            context.view_layer.objects.active = armature_with_bones_obj
-            bpy.ops.object.join()
-        else:
-            bpy.data.objects.remove(armature_temp_obj, do_unlink=True)
+        for obj in mod_objs:
+            mod = obj.modifiers.new("Armature", 'ARMATURE')
+            mod.object = armature_with_bones_obj
+
+        bpy.ops.object.select_all(action='DESELECT')
+        armature_temp_obj.select_set(True)
+        armature_with_bones_obj.select_set(True)
+        context.view_layer.objects.active = armature_with_bones_obj
+        bpy.ops.object.join()
 
         finished = time.time()
         
