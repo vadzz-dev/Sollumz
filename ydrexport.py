@@ -14,6 +14,7 @@ import shutil
 import ntpath
 from datetime import datetime 
 from . import shaderoperators as Shader
+from .tools import jenkhash as JenkHash
 
 def prettify(elem):
     rough_string = tostring(elem, encoding='UTF-8')
@@ -269,9 +270,8 @@ def get_vertex_layout(shader):
     parameter_set = Shader.shaders.get(shader)
     if parameter_set is not None:
         for p in parameter_set:
-            if isinstance(p, Shader.ExportShaderProperties):
-                if p.name == "Layout":
-                    return p.value
+            if p.Type == "Layout":
+                return p.get_value()
 
     print('Unknown shader: ', shader)
 
@@ -490,10 +490,9 @@ def write_shader_node(mat):
     parameter_set = Shader.shaders.get(fix_shader_name(mat.name))
     if parameter_set is not None:
         for p in parameter_set:
-            if isinstance(p, Shader.ExportShaderProperties):
-                if p.name == "RenderBucket":
-                    renderbucket_node = p.write()
-                    break
+            if p.Type == "RenderBucket":
+                renderbucket_node = p.write()
+                break
     
     params_node = Element("Parameters")
     
@@ -1040,13 +1039,17 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
     
     return drawable_node
     
+def get_hash(obj):
+    return JenkHash.Generate(obj.name.split(".")[0])
+
 def write_drawable_dictionary(obj, filepath):
     drawable_dictionary_node = Element("DrawableDictionary")
-    children = None
-    if len(obj.drawable_dict_properties.exportables) > 0:
-        children = [i.drawable for i in obj.drawable_dict_properties.exportables]
-    else:
-        children = get_obj_children(obj)
+    # children = None
+    # if len(obj.drawable_dict_properties.exportables) > 0:
+    #     children = [i.drawable for i in obj.drawable_dict_properties.exportables]
+    # else:
+    children = get_obj_children(obj)
+    children.sort(key=get_hash)
 
     bones = None
     for c in children:
