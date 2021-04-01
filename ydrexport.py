@@ -6,8 +6,6 @@ from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from xml.dom import minidom
 from mathutils import Vector, Matrix
-from collections import deque
-from .tools import formatting as Formatting
 import os 
 import sys 
 import shutil
@@ -78,12 +76,11 @@ def vector_tostring(vector):
 
 def meshloopcolor_tostring(color):
     try:
-        string = " ".join(str(round(color[i] * 255)) for i in range(4))
-        # string = ""
-        # string += str(round(color[0] * 255)) + " "
-        # string += str(round(color[1] * 255)) + " "
-        # string += str(round(color[2] * 255)) + " "
-        # string += str(round(color[3] * 255))
+        string = ""
+        string += str(round(color[0] * 255)) + " "
+        string += str(round(color[1] * 255)) + " "
+        string += str(round(color[2] * 255)) + " "
+        string += str(round(color[3] * 255))
         return string 
     except:
         return None
@@ -98,8 +95,8 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
     mesh = bpy.data.meshes.new_from_object(obj, preserve_all_data_layers=True, depsgraph=depsgraph)
     # mesh = obj.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
     # mesh = obj.data
-
-    allstrings = deque()
+    
+    allstrings = []
     allstrings.append("\n") #makes xml a little prettier
     
     vertamount = len(mesh.vertices)
@@ -151,6 +148,7 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
                 fixed_uv = Vector((u, v))
                 texcoords[uv_layer_id][vi] = fixed_uv
 
+            
     for poly in mesh.polygons:
         for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
             vi = mesh.loops[loop_index].vertex_index
@@ -211,7 +209,8 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
                 blendi[vi] = "0 0 0 0"
             
     for i in range(len(vertices)):
-        tlist = deque()
+        vstring = ""
+        tlist = []
         tlist.append(vector_tostring(vertices[i])) 
         tlist.append(vector_tostring(normals[i])) 
         tlist.append(meshloopcolor_tostring(clr[i])) 
@@ -227,28 +226,29 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
         tlist.append(blendi[i])
         
         layoutlist = order_vertex_list(tlist, vlayout)
-
-        vstring = deque(" " * 5)
+        
+        vstring = " " * 5
         for l in layoutlist:
-            vstring.append(l)
-            vstring.append(" " * 3)
-
-        vstring.append("\n")
-        allstrings.append("".join(vstring))
+            vstring += l 
+            vstring += " " * 3
+        vstring += "\n" 
+        allstrings.append(vstring) 
+            
+    vertex_string = ""
+    for s in allstrings:       
+        vertex_string += s
     
-    vertex_string = "".join(allstrings)
-
     return vertex_string
 
 def get_index_string(mesh):
     
-    index_list = deque()
+    index_string = ""
     
     for poly in mesh.polygons:
         for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
-            index_list.append(str(mesh.loops[loop_index].vertex_index))
+            index_string += str(mesh.loops[loop_index].vertex_index) + " "
             
-    return " ".join(index_list)
+    return index_string
 
 def fix_shader_name(name, no_extension = False): #because blender renames everything to .00X
     newname = ""
@@ -269,9 +269,8 @@ def get_vertex_layout(shader):
     parameter_set = Shader.shaders.get(shader)
     if parameter_set is not None:
         for p in parameter_set:
-            if isinstance(p, Shader.ExportShaderProperties):
-                if p.name == "Layout":
-                    return p.value
+            if p.Type == "Layout":
+                return p.get_value()
 
     print('Unknown shader: ', shader)
 
@@ -490,10 +489,9 @@ def write_shader_node(mat):
     parameter_set = Shader.shaders.get(fix_shader_name(mat.name))
     if parameter_set is not None:
         for p in parameter_set:
-            if isinstance(p, Shader.ExportShaderProperties):
-                if p.name == "RenderBucket":
-                    renderbucket_node = p.write()
-                    break
+            if p.Type == "RenderBucket":
+                renderbucket_node = p.write()
+                break
     
     params_node = Element("Parameters")
     
@@ -552,6 +550,7 @@ def write_tditem_node(exportpath, mat):
                     
                     txtpath = node.image.filepath
                     dstpath = os.path.dirname(exportpath) + foldername + "\\" + os.path.basename(node.image.filepath)
+                    
                     # SameFileError
                     if txtpath != dstpath:
                         shutil.copyfile(txtpath, dstpath)
@@ -1042,11 +1041,7 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
     
 def write_drawable_dictionary(obj, filepath):
     drawable_dictionary_node = Element("DrawableDictionary")
-    children = None
-    if len(obj.drawable_dict_properties.exportables) > 0:
-        children = [i.drawable for i in obj.drawable_dict_properties.exportables]
-    else:
-        children = get_obj_children(obj)
+    children = get_obj_children(obj)
 
     bones = None
     for c in children:
@@ -1065,28 +1060,26 @@ def write_ydr_xml(context, filepath):
     
     root = None
 
-    # objects = bpy.context.scene.collection.objects
-    active_object = context.active_object
+    objects = bpy.context.scene.collection.objects
 
-    # if(len(objects) == 0):
-    #     return "No objects in scene for Sollumz export"
+    if(len(objects) == 0):
+        return "No objects in scene for Sollumz export"
     
     #select the object first?
-    if(active_object.sollumtype == "Drawable"):
-        root = write_drawable(active_object, filepath)
-        try: 
-            print("*** Complete ***")
-        except:
-            print(str(Exception))
-            return str(Exception)
+    for obj in objects:
+        if(obj.sollumtype == "Drawable"):
+            root = write_drawable(obj, filepath)
+            try: 
+                print("*** Complete ***")
+            except:
+                print(str(Exception))
+                return str(Exception)
 
     if(root == None):
         return "No Sollumz Drawable found to export"
     
-    # xmlstr = prettify(root)
-    Formatting.prettyxml(root)
-    xmlstr = ElementTree.tostring(root)
-    with open(filepath, "wb") as f:
+    xmlstr = prettify(root)
+    with open(filepath, "w") as f:
         f.write(xmlstr)
         return "Sollumz Drawable was succesfully exported to " + filepath
 
@@ -1094,27 +1087,26 @@ def write_ydd_xml(context, filepath):
     
     root = None
 
-    active_object = context.active_object
+    objects = bpy.context.scene.collection.objects
 
-    # if(len(objects) == 0):
-    #     return "No objects in scene for Sollumz export"
+    if(len(objects) == 0):
+        return "No objects in scene for Sollumz export"
     
     #select the object first?
-    if(active_object.sollumtype == "Drawable Dictionary"):
-        root = write_drawable_dictionary(active_object, filepath)
-        try: 
-            print("*** Complete ***")
-        except:
-            print(str(Exception))
-            return str(Exception)
+    for obj in objects:
+        if(obj.sollumtype == "Drawable Dictionary"):
+            root = write_drawable_dictionary(obj, filepath)
+            try: 
+                print("*** Complete ***")
+            except:
+                print(str(Exception))
+                return str(Exception)
 
     if(root == None):
         return "No Sollumz Drawable found to export"
     
-    # xmlstr = prettify(root)
-    Formatting.prettyxml(root)
-    xmlstr = ElementTree.tostring(root)
-    with open(filepath, "wb") as f:
+    xmlstr = prettify(root)
+    with open(filepath, "w") as f:
         f.write(xmlstr)
         return "Sollumz Drawable was succesfully exported to " + filepath
 
