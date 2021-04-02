@@ -410,12 +410,6 @@ class SollumzBoneProperties(PropertyGroup):
     flags: CollectionProperty(type = SollumzBoneFlag)
     ul_flags_index: IntProperty(name = "UIListIndex", default = 0)
 
-class SollumzDrawableDictExportables(PropertyGroup):
-    drawable: PointerProperty(type = bpy.types.Object)
-
-class SollumzDrawableDictProperties(PropertyGroup):
-    exportables: CollectionProperty(type = SollumzDrawableDictExportables)
-    ul_exportablesorder_index: IntProperty(name = "UIListIndex", default = 0)
 class SollumzClipProperties(PropertyGroup):
     Hash: StringProperty(name="Hash", default = "")
     Name: StringProperty(name="Name", default = "")
@@ -429,8 +423,6 @@ class SollumzClipProperties(PropertyGroup):
 classes = (
     SollumzBoneFlag,
     SollumzBoneProperties,
-    SollumzDrawableDictExportables,
-    SollumzDrawableDictProperties,
     SollumzClipProperties,
 )
 
@@ -439,7 +431,6 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.types.Bone.bone_properties = PointerProperty(type = SollumzBoneProperties)
-    bpy.types.Object.drawable_dict_properties = PointerProperty(type = SollumzDrawableDictProperties)
     bpy.types.Object.clip_properties = PointerProperty(type = SollumzClipProperties)
 
 def unregister():

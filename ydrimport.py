@@ -404,6 +404,7 @@ def get_vertices_from_data(layout, v_buffer):
     for idx in range(len(layout)):
         layers.append(layout[idx].tag)
         
+    # print(layers)
     vertices = []
     for v in v_buffer:
         position = None
@@ -472,7 +473,7 @@ def read_model_info(self, context, filepath, model, shaders, name, bones):
 
     ib = model.find("IndexBuffer")
     i_buffer = ib[0].text.strip().replace("\n", "").split()
-
+    # print(shaders[shader_index].name)
     vertices = get_vertices_from_data(vb.find("Layout"), v_buffer)
 
     i_buf = []
@@ -857,8 +858,6 @@ class ImportYDD(Operator, ImportHelper):
 
         for vmodel in vmodels:
             vmodel.parent = vmodel_dict_obj
-            exportable = vmodel_dict_obj.drawable_dict_properties.exportables.add()
-            exportable.drawable = vmodel
         
         context.scene.collection.objects.link(vmodel_dict_obj)
 

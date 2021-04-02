@@ -2093,6 +2093,7 @@ ped_alphasps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_clothsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2107,6 +2108,7 @@ ped_clothsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_cloth_enveffsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2122,6 +2124,7 @@ ped_cloth_enveffsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_decalsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("RenderBucket", 2),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
@@ -2137,6 +2140,7 @@ ped_decalsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_decal_decorationsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("RenderBucket", 2),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
@@ -2196,6 +2200,7 @@ ped_defaultsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_cutoutsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("RenderBucket", 3),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
@@ -2211,6 +2216,7 @@ ped_default_cutoutsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_clothsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2225,6 +2231,7 @@ ped_default_clothsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_enveffsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2240,6 +2247,7 @@ ped_default_enveffsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_mpsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2254,6 +2262,7 @@ ped_default_mpsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_palettesps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2284,6 +2293,7 @@ ped_emissivesps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_enveffsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2382,6 +2392,7 @@ ped_nopeddamagedecalssps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_palettesps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2396,6 +2407,7 @@ ped_palettesps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_wrinklesps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2416,6 +2428,7 @@ ped_wrinklesps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_wrinkle_clothsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2436,6 +2449,7 @@ ped_wrinkle_clothsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_wrinkle_cloth_enveffsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2480,6 +2494,7 @@ ped_wrinkle_cssps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_wrinkle_enveffsps = [
+                ShaderProperty("Layout", PBBNCCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2498,8 +2513,7 @@ ped_wrinkle_enveffsps = [
                 ShaderProperty("Value", "SpecularFresnel", 0.97, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "Bumpiness", 1.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DetailSettings", 0.0, 0.0, 24.0, 0.0),
-                ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)
-                ]
+                ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ptfx_modelsps = [
                 ShaderProperty("Layout", PNCT),
@@ -3327,6 +3341,7 @@ trees_tntsps = [
                 ShaderProperty("Value", "TintPaletteSelector", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_badgessps = [
+                ShaderProperty("Layout", PBBNCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -3344,8 +3359,7 @@ vehicle_badgessps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCTTX)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_basicsps = [
                 ShaderProperty("Image", "DiffuseSampler"),
@@ -3369,6 +3383,7 @@ vehicle_basicsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_blurredrotorsps = [
+                ShaderProperty("Layout", PBBNCTT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "SpecSampler"),
                 ShaderProperty("Value", "envEffTexTileUV", 8.0, 0.0, 0.0, 0.0),
@@ -3457,6 +3472,7 @@ vehicle_cutoutsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_dash_emissivesps = [
+                ShaderProperty("Layout", PBBNCT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "SpecSampler"),
@@ -3470,10 +3486,10 @@ vehicle_dash_emissivesps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCT)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_dash_emissive_opaquesps = [
+                ShaderProperty("Layout", PBBNCT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "SpecSampler"),
@@ -3489,6 +3505,7 @@ vehicle_dash_emissive_opaquesps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_decalsps = [
+                ShaderProperty("Layout", PBBNCTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "SpecSampler"),
@@ -3504,6 +3521,7 @@ vehicle_decalsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_decal2sps = [
+                ShaderProperty("Layout", PBBNCTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DirtSampler"),
@@ -3522,8 +3540,7 @@ vehicle_decal2sps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCTX)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_detailsps = [
                 ShaderProperty("Image", "DiffuseSampler"),
@@ -3549,6 +3566,7 @@ vehicle_detailsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_detail2sps = [
+                ShaderProperty("Layout", PBBNCTT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DetailSampler"),
@@ -3564,8 +3582,7 @@ vehicle_detail2sps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCTT)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_emissive_alphasps = [
                 ShaderProperty("Image", "DiffuseSampler"),
@@ -3606,6 +3623,7 @@ vehicle_emissive_opaquesps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_genericsps = [
+                ShaderProperty("Layout", PBBNCTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -3645,6 +3663,7 @@ vehicle_interiorsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_interior2sps = [
+                ShaderProperty("Layout", PBBNCT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "SpecSampler"),
@@ -3658,10 +3677,10 @@ vehicle_interior2sps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCT)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_licenseplatesps = [
+                ShaderProperty("Layout", PBBNCTTX),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DirtSampler"),
                 ShaderProperty("Image", "plateBgSampler"),
@@ -3688,10 +3707,10 @@ vehicle_licenseplatesps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCTTX)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_lightsemissivesps = [
+                ShaderProperty("Layout", PBBNCTT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DirtSampler"),
@@ -3709,10 +3728,10 @@ vehicle_lightsemissivesps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCTT)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_meshsps = [
+                ShaderProperty("Layout", PBBNCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DirtSampler"),
@@ -3729,8 +3748,7 @@ vehicle_meshsps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCTTX)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_mesh2_enveffsps = [
                 ShaderProperty("Image", "DiffuseSampler"),
@@ -3775,6 +3793,7 @@ vehicle_mesh_enveffsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_paint1sps = [
+                ShaderProperty("Layout", PBBNCTT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DirtSampler"),
@@ -3866,6 +3885,7 @@ vehicle_paint1_enveffsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_paint2sps = [
+                ShaderProperty("Layout", PBBNCT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DirtSampler"),
@@ -3913,6 +3933,7 @@ vehicle_paint2_enveffsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_paint3sps = [
+                ShaderProperty("Layout", PBBNCTT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DiffuseSampler2"),
@@ -3935,8 +3956,7 @@ vehicle_paint3sps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCTT)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_paint3_enveffsps = [
                 ShaderProperty("Image", "DiffuseSampler"),
@@ -3992,6 +4012,7 @@ vehicle_paint3_lvrsps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_paint4sps = [
+                ShaderProperty("Layout", PBBNCTT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DiffuseSampler2"),
@@ -4144,6 +4165,7 @@ vehicle_paint6sps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_paint6_enveffsps = [
+                ShaderProperty("Layout", PBBNCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "SnowSampler0"),
@@ -4300,6 +4322,7 @@ vehicle_paint9sps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_shutssps = [
+                ShaderProperty("Layout", PBBNCTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -4317,6 +4340,7 @@ vehicle_shutssps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_tiresps = [
+                ShaderProperty("Layout", PNCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DirtSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -4332,8 +4356,7 @@ vehicle_tiresps = [
                 ShaderProperty("Value", "matWheelWorldViewProj", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "matWheelWorld", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "TyreDeformParams2", 0.262, 1495.05, 0.0, 0.0),
-                ShaderProperty("Value", "TyreDeformParams", 0.0, 0.0, 0.0, 1.0),
-                ShaderProperty("Layout", PNCTTX)]
+                ShaderProperty("Value", "TyreDeformParams", 0.0, 0.0, 0.0, 1.0)]
 
 vehicle_tire_emissivesps = [
                 ShaderProperty("Image", "DiffuseSampler"),
@@ -4355,6 +4378,7 @@ vehicle_tire_emissivesps = [
                 ShaderProperty("Value", "TyreDeformParams", 0.0, 0.0, 0.0, 1.0)]
 
 vehicle_tracksps = [
+                ShaderProperty("Layout", PBBNCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DirtSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -4374,6 +4398,7 @@ vehicle_tracksps = [
                 ShaderProperty("Value", "matDiffuseColor", 1.0, 1.0, 1.0, 0.0)]
 
 vehicle_track2sps = [
+                ShaderProperty("Layout", PBBNCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DirtSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -4393,6 +4418,7 @@ vehicle_track2sps = [
                 ShaderProperty("Value", "matDiffuseColor", 1.0, 1.0, 1.0, 0.0)]
 
 vehicle_track2_emissivesps = [
+                ShaderProperty("Layout", PBBNCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DirtSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -4432,6 +4458,7 @@ vehicle_track_ammosps = [
                 ShaderProperty("Value", "matDiffuseColor", 1.0, 1.0, 1.0, 0.0)]
 
 vehicle_track_emissivesps = [
+                ShaderProperty("Layout", PBBNCTTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DirtSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -4470,6 +4497,7 @@ vehicle_lightssps = [
                 ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_vehglasssps = [
+                ShaderProperty("Layout", PBBNCTTT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "DirtSampler"),
@@ -4485,8 +4513,7 @@ vehicle_vehglasssps = [
                 ShaderProperty("Value", "DamagedWheelOffsets", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageTextureOffset", 0.0, 0.0, 0.0, 0.0),
                 ShaderProperty("Value", "DamageMultiplier", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0),
-                ShaderProperty("Layout", PBBNCTTT)]
+                ShaderProperty("Value", "BoundRadius", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_vehglass_innersps = [
                 ShaderProperty("Layout", PBBNCTT),

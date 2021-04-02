@@ -1044,10 +1044,7 @@ def get_hash(obj):
 
 def write_drawable_dictionary(obj, filepath):
     drawable_dictionary_node = Element("DrawableDictionary")
-    # children = None
-    # if len(obj.drawable_dict_properties.exportables) > 0:
-    #     children = [i.drawable for i in obj.drawable_dict_properties.exportables]
-    # else:
+    
     children = get_obj_children(obj)
     children.sort(key=get_hash)
 
