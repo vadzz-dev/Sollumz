@@ -33,6 +33,7 @@ bpy.types.Object.sollumtype = bpy.props.EnumProperty(
                                                         items = [
                                                                     ("None", "None", "None"),
                                                                     ("Fragment", "Fragment", "Fragment"),
+                                                                    ("Child", "Child", "Child"),
                                                                     ("Drawable Dictionary", "Drawable Dictionary", "Drawable Dictionary"),
                                                                     ("Drawable", "Drawable", "Drawable"), 
                                                                     ("Geometry", "Geometry", "Geometry"),
@@ -405,10 +406,16 @@ bpy.types.Object.bounds_bvh = bpy.props.BoolProperty(name="BVH (Bounding volume 
 class SollumzBoneFlag(PropertyGroup):
     name: StringProperty(default="Unk0")
 
+class SollumzGroupProperties(PropertyGroup):
+    active: BoolProperty(name = "Active", default = False)
+    mass: FloatProperty(name = "Mass", default = 1000)
+    child: PointerProperty(type = bpy.types.Object)
+
 class SollumzBoneProperties(PropertyGroup):
     tag: IntProperty(name = "BoneTag", default = 0, min = 0)
     flags: CollectionProperty(type = SollumzBoneFlag)
     ul_flags_index: IntProperty(name = "UIListIndex", default = 0)
+    group: PointerProperty(type = SollumzGroupProperties)
 
 class SollumzClipProperties(PropertyGroup):
     Hash: StringProperty(name="Hash", default = "")
@@ -422,6 +429,7 @@ class SollumzClipProperties(PropertyGroup):
 
 classes = (
     SollumzBoneFlag,
+    SollumzGroupProperties,
     SollumzBoneProperties,
     SollumzClipProperties,
 )
@@ -438,4 +446,3 @@ def unregister():
         bpy.utils.unregister_class(cls)
     
     del bpy.types.Bone.bone_properties
-    del bpy.types.Object.drawable_dict_properties

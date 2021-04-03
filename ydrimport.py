@@ -1,6 +1,7 @@
 import bpy
 import os
 import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import Element
 from mathutils import Vector, Quaternion, Matrix
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
@@ -8,7 +9,408 @@ from bpy.types import Operator
 import time
 import random 
 from .tools import cats as Cats
-from .ybnimport import read_ybn_xml 
+from .ybnimport import read_composite_info_children 
+from .ycdimport import xml_read_value, xml_read_text
+
+class Bone:
+    name = None
+    tag = None
+    index = None
+    parent_index = None
+    sibling_index = None
+    flags = None
+    translation = None
+    rotation = None
+    scale = None
+
+    def __init__(self, xml):
+
+        if xml is None:
+            return
+
+        self.name = xml_read_text(xml.find("Name"), "Drawable", str)
+        self.tag = xml_read_value(xml.find("Tag"), 0, int)
+        self.index = xml_read_value(xml.find("Index"), 0, int)
+        self.parent_index = xml_read_value(xml.find("ParentIndex"), 0, int)
+        self.sibling_index = xml_read_value(xml.find("SiblingIndex"), 0, int)
+
+        flags_item = xml.find("Flags")
+        translation_item = xml.find("Translation")
+        rotation_item = xml.find("Rotation")
+        scale_item = xml.find("Scale")
+
+        if (flags_item.text != None):
+            self.flags = flags_item.text.strip().split(", ")
+
+        self.translation = Vector()
+        self.translation.x = float(translation_item.attrib["x"])
+        self.translation.y = float(translation_item.attrib["y"])
+        self.translation.z = float(translation_item.attrib["z"])
+
+        self.rotation = Quaternion()
+        self.rotation.w = float(rotation_item.attrib["w"])
+        self.rotation.x = float(rotation_item.attrib["x"])
+        self.rotation.y = float(rotation_item.attrib["y"])
+        self.rotation.z = float(rotation_item.attrib["z"])
+
+        self.scale = Vector()
+        self.scale.x = float(scale_item.attrib["x"])
+        self.scale.y = float(scale_item.attrib["y"])
+        self.scale.z = float(scale_item.attrib["z"])
+
+    def create(self, armature):
+
+        if armature is None:
+            return None
+
+        # bpy.context.view_layer.objects.active = armature
+        edit_bone = armature.data.edit_bones.new(self.name)
+        if self.parent_index != -1:
+            edit_bone.parent = armature.data.edit_bones[self.parent_index]
+
+        # https://github.com/LendoK/Blender_GTA_V_model_importer/blob/master/importer.py
+        mat_rot = self.rotation.to_matrix().to_4x4()
+        mat_loc = Matrix.Translation(self.translation)
+        mat_sca = Matrix.Scale(1, 4, self.scale)
+
+        edit_bone.head = (0,0,0)
+        edit_bone.tail = (0,0.05,0)
+        edit_bone.matrix = mat_loc @ mat_rot @ mat_sca
+        if edit_bone.parent != None:
+            edit_bone.matrix = edit_bone.parent.matrix @ edit_bone.matrix
+
+        return self.name
+
+    def set_properties(self, armature):
+
+        bone = armature.pose.bones[self.name].bone
+        bone.bone_properties.tag = self.tag
+        # LimitRotation and Unk0 have their special meanings, can be deduced if needed when exporting
+        flags_restricted = set(["LimitRotation", "Unk0"])
+        for _flag in self.flags:
+            if (_flag in flags_restricted):
+                continue
+
+            flag = bone.bone_properties.flags.add()
+            flag.name = _flag
+
+class Joint:
+    type = None
+    tag = None
+    min = None
+    max = None
+
+    def __init__(self, xml, type):
+
+        self.type = type
+        self.tag = xml_read_value(xml.find("BoneId"), 0, int)
+
+        min_item = xml.find("Min")
+        self.min = Vector()
+        self.min.x = float(min_item.attrib["x"])
+        self.min.y = float(min_item.attrib["y"])
+        self.min.z = float(min_item.attrib["z"])
+
+        max_item = xml.find("Max")
+        self.max = Vector()
+        self.max.x = float(max_item.attrib["x"])
+        self.max.y = float(max_item.attrib["y"])
+        self.max.z = float(max_item.attrib["z"])
+
+    def apply(self, bone):
+
+        if bone is None:
+            return None
+
+        constraint = bone.constraints.new('LIMIT_ROTATION')
+        constraint.owner_space = 'LOCAL'
+        constraint.use_limit_x = True
+        constraint.use_limit_y = True
+        constraint.use_limit_z = True
+        constraint.max_x = float(self.max.x)
+        constraint.max_y = float(self.max.y)
+        constraint.max_z = float(self.max.z)
+        constraint.min_x = float(self.min.x)
+        constraint.min_y = float(self.min.y)
+        constraint.min_z = float(self.min.z)
+
+        return bone.name
+
+    def write(self, bone):
+        if bone is None:
+            return None
+        
+        nodes = []
+        for con in bone.constraints:
+            if con.type == 'LIMIT_ROTATION':
+                self.type = "RotationLimits"
+                self.tag = bone.bone.bone_properties.tag
+                self.min = Vector(con.min_x, con.min_y, con.min_z)
+                self.max = Vector(con.max_x, con.max_y, con.max_z)
+                con_node = Element(self.type)
+
+                tag_node = Element("BoneId")
+                tag_node.set("value", str(self.tag))
+
+                unka_node = Element("UnknownA")
+                unka_node.set("value", "0")
+
+                min_node = Element("Min")
+                min_node.set("x", con.min_x)
+                min_node.set("y", con.min_y)
+                min_node.set("z", con.min_z)
+
+                max_node = Element("Max")
+                max_node.set("x", con.max_x)
+                max_node.set("y", con.max_y)
+                max_node.set("z", con.max_z)
+
+                con_node.append(tag_node)
+                con_node.append(unka_node)
+                con_node.append(min_node)
+                con_node.append(max_node)
+                nodes.append(con_node)
+
+        return nodes
+
+class DrawableModel:
+    key = None
+    render_mask = None
+    meshes = None
+
+    def __init__(self, xml, filepath, shaders, bones, name, key):
+        if xml is None:
+            return
+
+        self.render_mask = int(xml.find("RenderMask").attrib["value"])
+        self.key = key
+
+        self.meshes = []
+        for model in xml.find('Geometries'):
+            d_obj = read_model_info(self, bpy.context, filepath, model, shaders, name, bones)
+            self.meshes.append(d_obj)
+
+    def apply(self, armature):
+
+        if self.meshes is not None:
+            for obj in self.meshes:
+                obj.sollumtype = "Geometry"
+                obj.level_of_detail = self.key
+                obj.mask = self.render_mask
+                bpy.context.scene.collection.objects.link(obj)
+                obj.parent = armature
+                mod = obj.modifiers.new("Armature", 'ARMATURE')
+                mod.object = armature
+
+        return self.meshes
+
+class Drawable:
+    name = None
+    lods = None
+    shaders = None
+    bones = None
+    joints = None
+    drawable_models = None
+    bounds = None
+
+    def __init__(self, xml, filepath, shaders=None, bones_override=None):
+
+        if xml is None:
+            return
+
+        self.name = xml_read_text(xml.find("Name"), "Drawable", str)
+
+        if (xml.find("DrawableModelsHigh") == None and xml.find("DrawableModelsMedium") == None and xml.find("DrawableModelsLow") == None):
+            return
+
+        dd_high = float(xml.find("LodDistHigh").attrib["value"])
+        dd_med = float(xml.find("LodDistMed").attrib["value"])
+        dd_low = float(xml.find("LodDistLow").attrib["value"])
+        dd_vlow = float(xml.find("LodDistVlow").attrib["value"])
+        self.lods = [dd_high, dd_med, dd_low, dd_vlow]
+
+        if shaders is None:
+            self.shaders = read_ydr_shaders(self, bpy.context, filepath, xml)
+        else:
+            self.shaders = shaders
+
+        skeleton_node = xml.find("Skeleton")
+        if skeleton_node is not None:
+            bones_node = skeleton_node.find("Bones")
+            self.bones = []
+            for item in bones_node:
+                bone = Bone(item)
+                self.bones.append(bone)
+
+        bones = None
+        if bones_override is None:
+            bones = self.bones
+        else:
+            bones = bones_override
+
+        joints_node = xml.find("Joints")
+        if joints_node is not None:
+            self.joints = []
+            if joints_node.find("RotationLimits") is not None:
+                for item in joints_node.find("RotationLimits"):
+                    joint = Joint(item, "RotationLimits")
+                    self.joints.append(joint)
+
+        self.drawable_models = []
+        if(xml.find("DrawableModelsHigh") != None):
+            key = "High"
+            dm_node = xml.find("DrawableModels" + key)
+            for dm in dm_node:
+                high_objects = DrawableModel(dm, filepath, self.shaders, bones, self.name, key)
+
+            self.drawable_models.append(high_objects)
+
+        if(xml.find("DrawableModelsMedium") != None):
+            key = "Medium"
+            dm_node = xml.find("DrawableModels" + key)
+            for dm in dm_node:
+                med_objects = DrawableModel(dm, filepath, self.shaders, bones, self.name, key)
+
+            self.drawable_models.append(med_objects)
+
+        if(xml.find("DrawableModelsLow") != None):
+            key = "Low"
+            dm_node = xml.find("DrawableModels" + key)
+            for dm in dm_node:
+                low_objects = DrawableModel(dm, filepath, self.shaders, bones, self.name, key)
+
+            self.drawable_models.append(low_objects)
+
+        bound_node = xml.find("Bounds")
+        if bound_node is not None:
+            self.bounds = read_composite_info_children(bound_node)
+
+    def apply(self, armature=None):
+
+        if armature is None:
+            skel = bpy.data.armatures.new(self.name + ".skel")
+            armature = bpy.data.objects.new(self.name, skel)
+            armature.sollumtype = "Drawable"
+            bpy.context.scene.collection.objects.link(armature)
+
+            if self.lods is not None:
+                armature.drawble_distance_high = self.lods[0]
+                armature.drawble_distance_medium = self.lods[1]
+                armature.drawble_distance_low = self.lods[2]
+                armature.drawble_distance_vlow = self.lods[3]
+
+        bpy.context.view_layer.objects.active = armature
+
+        if self.bones is not None:
+            bpy.ops.object.mode_set(mode='EDIT')
+
+            for bone in self.bones:
+                _bone = bone.create(armature)
+
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            for bone in self.bones:
+                bone.set_properties(armature)
+
+        if self.joints is not None:
+            bones_dict = build_bones_dict(armature)
+            if bones_dict is not None:
+                for joint in self.joints:
+                    bone = armature.pose.bones.get(bones_dict[joint.tag])
+                    joint.apply(bone)
+
+        if self.drawable_models is not None:
+            for model in self.drawable_models:
+                model.apply(armature)
+
+        if self.bounds is not None:
+            cobj = bpy.data.objects.new(self.name + "_col", None)
+                
+            if(cobj == None):
+                return #log error 
+            
+            for child in self.bounds:
+                bpy.context.scene.collection.objects.link(child)
+                child.parent = cobj 
+                
+            cobj.sollumtype = "Bound Composite"
+            cobj.parent = armature
+            bpy.context.scene.collection.objects.link(cobj)
+
+        return armature
+
+class DrawableDictionary:
+    bones_override = None
+    drawables = None
+    drawable_with_bones_name = None
+
+    def __init__(self, xml, filepath):
+
+        if xml is None:
+            return
+
+        self.drawables = []
+        # we need to get the name of that particular drawable and its bones before loading other data
+        for item in xml:
+            if item.find("Skeleton") is not None:
+                self.drawable_with_bones_name = item.find("Name").text
+                bones_node = item.find("Skeleton").find("Bones")
+                self.bones_override = []
+                for i in bones_node:
+                    bone = Bone(i)
+                    self.bones_override.append(bone)
+
+                break
+
+        for item in xml:
+            if item is None:
+                continue
+
+            drawable = Drawable(item, filepath, None, self.bones_override)
+            self.drawables.append(drawable)
+
+    def apply(self, filepath):
+
+        name = os.path.basename(filepath)[:-8]
+        vmodels = []
+        # bones are shared in single ydd however they still have to be placed under a paticular drawable
+        # temp armature, to be merged
+        armature_temp = bpy.data.armatures.new("ARMATURE_TEMP")
+        armature_temp_obj = bpy.data.objects.new("ARMATURE_TEMP", armature_temp)
+        bpy.context.scene.collection.objects.link(armature_temp_obj)
+        bpy.context.view_layer.objects.active = armature_temp_obj
+
+        armature_with_bones_obj = None
+
+        mod_objs = []
+
+        for drawable in self.drawables:
+            vmodel_obj = drawable.apply()
+            if (armature_with_bones_obj == None and self.drawable_with_bones_name != None and drawable.name == self.drawable_with_bones_name):
+                armature_with_bones_obj = vmodel_obj
+
+            vmodels.append(vmodel_obj)
+        
+        vmodel_dict_obj = bpy.data.objects.new(name, None)
+        vmodel_dict_obj.sollumtype = "Drawable Dictionary"
+
+        for vmodel in vmodels:
+            vmodel.parent = vmodel_dict_obj
+        
+        bpy.context.scene.collection.objects.link(vmodel_dict_obj)
+
+        if (armature_with_bones_obj == None):
+            armature_with_bones_obj = vmodels[0]
+
+        for obj in mod_objs:
+            mod = obj.modifiers.new("Armature", 'ARMATURE')
+            mod.object = armature_with_bones_obj
+
+        bpy.ops.object.select_all(action='DESELECT')
+        armature_temp_obj.select_set(True)
+        armature_with_bones_obj.select_set(True)
+        bpy.context.view_layer.objects.active = armature_with_bones_obj
+        bpy.ops.object.join()
 
 class v_vertex:
 
@@ -26,6 +428,19 @@ class v_vertex:
         self.Tangent = t
         self.BlendWeights = bw
         self.BlendIndices = bi
+
+def build_bones_dict(obj):
+    if (obj == None):
+        return None
+
+    if (obj.pose == None):
+        return None
+
+    bones_dict = {}
+    for pose_bone in obj.pose.bones:
+        bones_dict[pose_bone.bone.bone_properties.tag] = pose_bone.name
+
+    return bones_dict
 
 def get_related_texture(texture_dictionary, img_name):
 
@@ -171,7 +586,7 @@ def create_material(filepath, td_node, shader):
             texture_dictionary.append(i)
     
     shadern_node = shader.find("FileName")
-    if shadern_node is not None:
+    if shadern_node is not None and shadern_node.text is not None:
         shadern = shadern_node.text
     else:
         shadern = "default.sps"
@@ -384,7 +799,7 @@ def create_model(self, context, index_buffer, vertices, filepath, name, bones):
     if (bones != None and len(bones) > 0 and len(blendweights) > 0 and len(verts_num) > 0):
         for i in range(256):
             if (i < len(bones)):
-                obj.vertex_groups.new(name=bones[i])
+                obj.vertex_groups.new(name=bones[i].name)
             else:
                 obj.vertex_groups.new(name="UNKNOWN_BONE." + str(i))
 
@@ -462,7 +877,6 @@ def get_vertices_from_data(layout, v_buffer):
     return vertices
 
 def read_model_info(self, context, filepath, model, shaders, name, bones):
-    
     v_buffer = []
     i_buffer = []
     shader_index = 0
@@ -473,7 +887,6 @@ def read_model_info(self, context, filepath, model, shaders, name, bones):
 
     ib = model.find("IndexBuffer")
     i_buffer = ib[0].text.strip().replace("\n", "").split()
-    # print(shaders[shader_index].name)
     vertices = get_vertices_from_data(vb.find("Layout"), v_buffer)
 
     i_buf = []
@@ -506,163 +919,6 @@ def read_shader_info(self, context, filepath, shd_node, td_node):
         
     return shaders
 
-def read_drawable_models(self, context, filepath, root, name, shaders, key, bones):
-
-    dm_node = root.find("DrawableModels" + key)
-    drawable_models = []
-    rm_nodes = []
-    drawable_objects = []
-
-    for dm in dm_node:
-        drawable_models.append(dm)
-        render_mask = int(dm.find("RenderMask").attrib["value"])
-        
-        g_node = []
-        for geo_node in dm.iter('Geometries'):
-            g_node = geo_node
-            
-        models = []
-        for model in g_node:
-            models.append(model)
-        
-        idx = 0
-        for model in models:
-            d_obj = read_model_info(self, context, filepath, model, shaders, name, bones)
-            
-            #set sollum properties 
-            d_obj.sollumtype = "Geometry"
-            d_obj.level_of_detail = key
-            d_obj.mask = render_mask
-            
-            drawable_objects.append(d_obj)
-            idx += 1
-        
-    return drawable_objects
-
-def build_bones_dict(armature):
-    if (armature == None):
-        return None
-
-    bones_dict = {}
-    for pose_bone in armature.pose.bones:
-        bones_dict[pose_bone.bone.bone_properties.tag] = pose_bone.name
-
-    return bones_dict
-
-def read_joints(self, context, filepath, root, bones_dict=None):
-
-    joints_node = root.find("Joints")
-    if (joints_node == None):
-        return None
-
-    rotationlimits_node = joints_node.find("RotationLimits")
-    if (rotationlimits_node == None):
-        return None
-
-    armature = context.object
-    if (bones_dict == None):
-        bones_dict = build_bones_dict(armature)
-
-    rotationlimits = []
-    for rotationlimits_item in rotationlimits_node:
-        rotationlimits_bone_id = rotationlimits_item.find("BoneId")
-        rotationlimits_min = rotationlimits_item.find("Min")
-        rotationlimits_max = rotationlimits_item.find("Max")
-        bone = armature.pose.bones.get(bones_dict[int(rotationlimits_bone_id.attrib["value"])])
-        constraint = bone.constraints.new('LIMIT_ROTATION')
-        constraint.owner_space = 'LOCAL'
-        constraint.use_limit_x = True
-        constraint.use_limit_y = True
-        constraint.use_limit_z = True
-        constraint.max_x = float(rotationlimits_max.attrib["x"])
-        constraint.max_y = float(rotationlimits_max.attrib["y"])
-        constraint.max_z = float(rotationlimits_max.attrib["z"])
-        constraint.min_x = float(rotationlimits_min.attrib["x"])
-        constraint.min_y = float(rotationlimits_min.attrib["y"])
-        constraint.min_z = float(rotationlimits_min.attrib["z"])
-        rotationlimits.append(bone.name)
-
-    return rotationlimits
-
-def read_bones(self, context, filepath, root):
-
-    skeleton_node = root.find("Skeleton")
-    if (skeleton_node == None):
-        return None, None
-
-    bones = []
-    bones_tag = []
-    flags_list = []
-    # LimitRotation and Unk0 have their special meanings, can be deduced if needed when exporting
-    flags_restricted = set(["LimitRotation", "Unk0"])
-    drawable_name = root.find("Name").text.split(".")[0]
-    bones_node = skeleton_node.find("Bones")
-    armature = context.object
-    bpy.ops.object.mode_set(mode='EDIT')
-
-    for bones_item in bones_node:
-        name_item = bones_item.find("Name")
-        tag_item = bones_item.find("Tag")
-        parentindex_item = bones_item.find("ParentIndex")
-        flags_item = bones_item.find("Flags")
-        translation_item = bones_item.find("Translation")
-        rotation_item = bones_item.find("Rotation")
-        scale_item = bones_item.find("Scale")
-
-        quaternion = Quaternion()
-        quaternion.w = float(rotation_item.attrib["w"])
-        quaternion.x = float(rotation_item.attrib["x"])
-        quaternion.y = float(rotation_item.attrib["y"])
-        quaternion.z = float(rotation_item.attrib["z"])
-        mat_rot = quaternion.to_matrix().to_4x4()
-
-        trans = Vector()
-        trans.x = float(translation_item.attrib["x"])
-        trans.y = float(translation_item.attrib["y"])
-        trans.z = float(translation_item.attrib["z"])
-        mat_loc = Matrix.Translation(trans)
-
-        scale = Vector()
-        scale.x = float(scale_item.attrib["x"])
-        scale.y = float(scale_item.attrib["y"])
-        scale.z = float(scale_item.attrib["z"])
-        mat_sca = Matrix.Scale(1, 4, scale)
-
-        edit_bone = armature.data.edit_bones.new(name_item.text)
-        # edit_bone.bone_id = int(bone_tag.attrib["value"])
-        if parentindex_item.attrib["value"] != "-1":
-            edit_bone.parent = armature.data.edit_bones[int(parentindex_item.attrib["value"])]
-
-        # https://github.com/LendoK/Blender_GTA_V_model_importer/blob/master/importer.py
-        edit_bone.head = (0,0,0)
-        edit_bone.tail = (0,0.05,0)
-        edit_bone.matrix = mat_loc @ mat_rot @ mat_sca
-        if edit_bone.parent != None:
-            edit_bone.matrix = edit_bone.parent.matrix @ edit_bone.matrix
-
-        if (flags_item != None and flags_item.text != None):
-            flags = flags_item.text.strip().split(", ")
-            
-        flags_list.append(flags)
-
-        # build a bones lookup table
-        bones.append(name_item.text)
-        bones_tag.append(int(tag_item.get('value')))
-
-    bpy.ops.object.mode_set(mode='POSE')
-
-    for i in range(len(bones)):
-        armature.pose.bones[i].bone.bone_properties.tag = bones_tag[i]
-        for _flag in flags_list[i]:
-            if (_flag in flags_restricted):
-                continue
-
-            flag = armature.pose.bones[i].bone.bone_properties.flags.add()
-            flag.name = _flag
-
-    bpy.ops.object.mode_set(mode='OBJECT')
-    return bones, drawable_name
-
 def read_ydr_shaders(self, context, filepath, root):
     shd_group = root.find("ShaderGroup")
 
@@ -675,7 +931,7 @@ def read_ydr_shaders(self, context, filepath, root):
     shaders = read_shader_info(self, context, filepath, shd_node, td_node)
     return shaders
 
-def read_ydr_xml(self, context, filepath, root, shaders, bones=None):
+def read_ydr_xml(self, context, filepath, root, bones_override=None):
 
     fname = os.path.basename(filepath)
     name = fname[:-8] #removes file extension
@@ -685,52 +941,16 @@ def read_ydr_xml(self, context, filepath, root, shaders, bones=None):
     if model_name == None:
         model_name = name
 
-    # ydd specific, if bones are found then don't do that all over again
-    if (bones == None):
-        bones = read_bones(self, context, filepath, root)[0]
+    shaders = read_ydr_shaders(self, context, filepath, root)
+    drawable = Drawable(root, filepath, shaders, bones_override)
 
-    if (bones != None):
-        joints = read_joints(self, context, filepath, root)
-
-    #get objects from drawable info
-    high_objects = []
-    med_objects = []
-    low_objects = []
-    
-    if(root.find("DrawableModelsHigh") != None):
-        high_objects = read_drawable_models(self, context, filepath, root, model_name, shaders, "High", bones)
-    if(root.find("DrawableModelsMedium") != None):
-        med_objects = read_drawable_models(self, context, filepath, root, model_name, shaders, "Medium", bones)
-    if(root.find("DrawableModelsLow") != None):
-        low_objects = read_drawable_models(self, context, filepath, root, model_name, shaders, "Low", bones)
-
-    all_objects = []
-    for o in high_objects:
-        all_objects.append(o)
-    for o in med_objects:
-        all_objects.append(o)
-    for o in low_objects:
-        all_objects.append(o)
-    return all_objects
+    return drawable
 
 def read_ydd_xml(self, context, filepath, root):
 
-    all_objects = []
-    bones = None
-    drawable_with_bones_name = None
+    drawable_dict = DrawableDictionary(root, filepath)
 
-    # we need to get the name of that particular drawable and its bones before loading other data
-    for ydr in root:
-        bones, drawable_with_bones_name = read_bones(self, context, filepath, ydr)
-        if (drawable_with_bones_name != None):
-            break
-
-    for ydr in root:
-        shaders = read_ydr_shaders(self, context, filepath, ydr)
-        allobjs = read_ydr_xml(self, context, filepath, ydr, shaders, bones)
-        all_objects.append(allobjs)
-
-    return all_objects, drawable_with_bones_name
+    return drawable_dict
 
 class ImportYDR(Operator, ImportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
@@ -752,38 +972,8 @@ class ImportYDR(Operator, ImportHelper):
         tree = ET.parse(self.filepath)
         root = tree.getroot()
 
-        name = os.path.basename(self.filepath)[:-8]
-        armature = bpy.data.armatures.new(name + ".skel")
-        vmodel_obj = bpy.data.objects.new(name, armature)
-        context.scene.collection.objects.link(vmodel_obj)
-        context.view_layer.objects.active = vmodel_obj
-
-        shaders = read_ydr_shaders(self, context, self.filepath, root)
-        ydr_objs = read_ydr_xml(self, context, self.filepath, root, shaders)
-
-        for obj in ydr_objs:
-            context.scene.collection.objects.link(obj)
-            obj.parent = vmodel_obj
-            mod = obj.modifiers.new("Armature", 'ARMATURE')
-            mod.object = vmodel_obj
-        
-        bound_obj = read_ybn_xml(context, self.filepath, root)
-        
-        if bound_obj is not None:
-            bound_obj.parent = vmodel_obj
-            context.scene.collection.objects.link(bound_obj)
-        
-        #set sollum properties 
-        dd_high = float(root.find("LodDistHigh").attrib["value"])
-        dd_med = float(root.find("LodDistMed").attrib["value"])
-        dd_low = float(root.find("LodDistLow").attrib["value"])
-        dd_vlow = float(root.find("LodDistVlow").attrib["value"])
-        
-        vmodel_obj.sollumtype = "Drawable"
-        vmodel_obj.drawble_distance_high = dd_high 
-        vmodel_obj.drawble_distance_medium = dd_med
-        vmodel_obj.drawble_distance_low = dd_low
-        vmodel_obj.drawble_distance_vlow = dd_vlow
+        drawable = read_ydr_xml(self, context, self.filepath, root)
+        vmodel_obj = drawable.apply()
 
         finished = time.time()
         
@@ -817,62 +1007,8 @@ class ImportYDD(Operator, ImportHelper):
         root = tree.getroot()
 
         name = os.path.basename(self.filepath)[:-8]
-        vmodels = []
-        # bones are shared in single ydd however they still have to be placed under a paticular drawable
-        # temp armature, to be merged
-        armature_temp = bpy.data.armatures.new("ARMATURE_TEMP")
-        armature_temp_obj = bpy.data.objects.new("ARMATURE_TEMP", armature_temp)
-        context.scene.collection.objects.link(armature_temp_obj)
-        context.view_layer.objects.active = armature_temp_obj
-
-        drawable_with_bones_name = None
-        armature_with_bones_obj = None
-
-        mod_objs = []
-        ydd_objs, drawable_with_bones_name = read_ydd_xml(self, context, self.filepath, root)
-        for ydd in ydd_objs:
-            drawable_name = ydd[0].name.split('.')[0][:-5]
-            armature = bpy.data.armatures.new(drawable_name + ".skel")
-            # mesh has "_mesh" at the end of its name, so remove that for the parented armature
-            vmodel_obj = bpy.data.objects.new(drawable_name, armature)
-            context.scene.collection.objects.link(vmodel_obj)
-            if (armature_with_bones_obj == None and drawable_with_bones_name != None and drawable_name == drawable_with_bones_name):
-                armature_with_bones_obj = vmodel_obj
-
-            for obj in ydd:
-                context.scene.collection.objects.link(obj)
-                obj.parent = vmodel_obj
-                mod_objs.append(obj)    
-        
-            for ydr in root:
-                bound_obj = read_ybn_xml(context, self.filepath, ydr)
-                if(bound_obj != None):
-                    bound_obj.parent = vmodel_obj
-                    context.scene.collection.link(bound_obj)
-                    
-            vmodel_obj.sollumtype = "Drawable"
-            vmodels.append(vmodel_obj)
-        
-        vmodel_dict_obj = bpy.data.objects.new(name, None)
-        vmodel_dict_obj.sollumtype = "Drawable Dictionary"
-
-        for vmodel in vmodels:
-            vmodel.parent = vmodel_dict_obj
-        
-        context.scene.collection.objects.link(vmodel_dict_obj)
-
-        if (armature_with_bones_obj == None):
-            armature_with_bones_obj = vmodels[0]
-
-        for obj in mod_objs:
-            mod = obj.modifiers.new("Armature", 'ARMATURE')
-            mod.object = armature_with_bones_obj
-
-        bpy.ops.object.select_all(action='DESELECT')
-        armature_temp_obj.select_set(True)
-        armature_with_bones_obj.select_set(True)
-        context.view_layer.objects.active = armature_with_bones_obj
-        bpy.ops.object.join()
+        drawable_dict = read_ydd_xml(self, context, self.filepath, root)
+        drawable_dict.apply(self.filepath)
 
         finished = time.time()
         

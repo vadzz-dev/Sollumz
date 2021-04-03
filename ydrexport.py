@@ -907,6 +907,9 @@ def get_sphere_bb(objs, bbminmax):
     allverts = []
     for obj in objs:
         mesh = obj.data
+        if mesh is None:
+            continue
+        
         for vert in mesh.vertices:
             allverts.append(vert)
     bscen = [0, 0, 0]

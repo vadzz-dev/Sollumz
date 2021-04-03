@@ -3341,7 +3341,7 @@ trees_tntsps = [
                 ShaderProperty("Value", "TintPaletteSelector", 0.0, 0.0, 0.0, 0.0)]
 
 vehicle_badgessps = [
-                ShaderProperty("Layout", PBBNCTTX),
+                ShaderProperty("Layout", PBBNCTX),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "DamageSampler"),
                 ShaderProperty("Image", "BumpSampler"),

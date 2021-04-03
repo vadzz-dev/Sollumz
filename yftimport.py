@@ -8,8 +8,188 @@ from bpy.types import Operator
 import time
 import random 
 from .tools import cats as Cats
-from .ydrimport import read_ydr_xml, read_ydr_shaders, build_bones_dict
-from .ybnimport import read_composite_info
+from .ydrimport import Drawable, build_bones_dict
+from .ybnimport import read_composite_info_children
+from .ycdimport import xml_read_value, xml_read_text
+
+class Archetype:
+    name = None
+    bounds = None
+
+    def __init__(self, xml):
+        if xml is None:
+            return
+
+        self.name = xml_read_text(xml.find("Name"), "", str)
+        self.bounds = read_composite_info_children(xml.find('Bounds'))
+    
+    def adjust(self, bound_obj, parent):
+        bound_obj.location -= parent.location
+        bound_obj.rotation_euler.x -= parent.rotation_euler.x
+        bound_obj.rotation_euler.y -= parent.rotation_euler.y
+        bound_obj.rotation_euler.z -= parent.rotation_euler.z
+        bound_obj.scale.x /= parent.scale.x
+        bound_obj.scale.y /= parent.scale.y
+        bound_obj.scale.z /= parent.scale.z
+
+    def apply(self, cobj=None):
+
+        if cobj is None:
+            cobj = bpy.data.objects.new(self.name + "_col", None)
+
+        for bound in self.bounds:
+            bpy.context.scene.collection.objects.link(bound)
+            bound.parent = cobj
+
+        cobj.sollumtype = "Bound Composite"
+
+        return cobj
+
+    def apply_clean(self):
+
+        for bound in self.bounds:
+            bpy.context.scene.collection.objects.link(bound)
+
+        return self.bounds
+
+class Group:
+    name = None
+    children_part_index = None
+    parent_index = None
+    children_child_index = None
+    children_num = None
+    children_groups_num = None
+    mass = None
+
+    def __init__(self, xml):
+
+        if xml is None:
+            return
+
+        self.name = xml_read_text(xml.find("Name"), "", str)
+        self.children_part_index = xml_read_value(xml.find("Index"), 0, int)
+        self.parent_index = xml_read_value(xml.find("ParentIndex"), 0, int)
+        self.children_child_index = xml_read_value(xml.find("UnkByte4C"), 0, int)
+        self.children_num = xml_read_value(xml.find("UnkByte4F"), 0, int)
+        self.children_groups_num = xml_read_value(xml.find("UnkByte50"), 0, int)
+        self.mass = xml_read_value(xml.find("Mass"), 0, float)
+
+    def set_properties(self, bone=None, child=None):
+
+        if bone is None:
+            return
+
+        bone.bone_properties.group.active = True
+        bone.bone_properties.group.mass = self.mass
+        bone.bone_properties.group.child = child
+
+class Child:
+    group_index = None
+    tag = None
+    drawable = None
+    bounds = None
+
+    def __init__(self, xml, filepath, shaders):
+
+        if xml is None:
+            return
+
+        self.group_index = xml_read_value(xml.find("GroupIndex"), 0, int)
+        self.tag = xml_read_value(xml.find("BoneTag"), 0, int)
+        self.drawable = Drawable(xml.find('Drawable'), filepath, shaders)
+
+    def apply(self, child=None):
+
+        if child is None:
+            child = bpy.data.objects.new("child", None)
+            child.sollumtype = "Children"
+            bpy.context.scene.collection.objects.link(child)
+
+        if self.drawable is not None and self.drawable.drawable_models is not None:
+            drawable = self.drawable.apply()
+            drawable.parent = child
+
+        return child
+
+class Fragment:
+    name = None
+    drawable = None
+    archetype = None
+    groups = None
+    children = None
+
+    def __init__(self, xml, filepath):
+
+        if xml is None:
+            return
+
+        self.name = xml_read_text(xml.find("Name"), "Fragment", str)
+        drawable_node = xml.find('Drawable')
+        physics_node = xml.find('Physics')
+
+        self.drawable = Drawable(drawable_node, filepath)
+        self.archetype = None
+        self.groups = None
+        self.children = None
+
+        if physics_node is not None:
+            lod1_node = physics_node.find('LOD1')
+            self.archetype = Archetype(lod1_node.find('Archetype'))
+
+            self.groups = []
+            for group_node in lod1_node.find("Groups"):
+                group = Group(group_node)
+                self.groups.append(group)
+
+            self.children = []
+            shaders = self.drawable.shaders
+            for children_node in lod1_node.find("Children"):
+                child = Child(children_node, filepath, shaders)
+                self.children.append(child)
+
+    def apply(self):
+
+        fragment_node = bpy.data.objects.new(self.name, None)
+        fragment_node.sollumtype = "Fragment"
+        bpy.context.scene.collection.objects.link(fragment_node)
+
+        drawable_node = self.drawable.apply()
+        drawable_node.parent = fragment_node
+
+        bones_dict = build_bones_dict(drawable_node)
+
+        if self.archetype is not None:
+            bounds = self.archetype.apply_clean()
+
+        if self.children is not None:
+            children_node = bpy.data.objects.new(self.name + "_children", None)
+            children_node.parent = fragment_node
+            bpy.context.scene.collection.objects.link(children_node)
+            children_table = [None] * len(self.groups)
+
+            for i, group in enumerate(self.groups):
+                child = bpy.data.objects.new(group.name, None)
+                child.sollumtype = "Child"
+                bpy.context.scene.collection.objects.link(child)
+                children_table[i] = child
+                group.set_properties(drawable_node.data.bones[group.name], child)
+
+            for i, child in enumerate(self.children):
+                child_node = child.apply(children_table[child.group_index])
+                child_node.parent = children_node
+                bounds[i].parent = child_node
+
+                children_table[child.group_index].matrix_local = drawable_node.data.bones[bones_dict[child.tag]].matrix_local
+                self.archetype.adjust(bounds[i], child_node)
+
+        return fragment_node
+
+def read_yft_xml(self, root):
+
+    # fragment_name = root.find("Name").text
+    fragment = Fragment(root, self.filepath)
+
+    return fragment
 
 class ImportYFT(Operator, ImportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
@@ -31,75 +211,8 @@ class ImportYFT(Operator, ImportHelper):
         tree = ET.parse(self.filepath)
         root = tree.getroot()
 
-        fragment_name = root.find("Name").text
-
-        armature = bpy.data.armatures.new(fragment_name + ".skel")
-        node_fragment = bpy.data.objects.new(fragment_name, armature)
-        context.scene.collection.objects.link(node_fragment)
-        context.view_layer.objects.active = node_fragment
-
-        # Drawable
-        drawable = root.find('Drawable')
-        shaders = read_ydr_shaders(self, context, self.filepath, drawable)
-        ydr_objs = read_ydr_xml(self, context, self.filepath, drawable, shaders)
-        node_fragment.sollumtype = "Fragment"
-
-        for obj in ydr_objs:
-            context.scene.collection.objects.link(obj)
-            obj.parent = node_fragment
-            mod = obj.modifiers.new("Armature", 'ARMATURE')
-            mod.object = node_fragment
-
-        # Physics
-        Physics = root.find('Physics')
-        LOD1 = Physics.find('LOD1')
-        node_physics = bpy.data.objects.new('Physics', None)
-        context.scene.collection.objects.link(node_physics)
-        node_physics.parent = node_fragment
-
-        node_lod1 = bpy.data.objects.new('LOD1', None)
-        context.scene.collection.objects.link(node_lod1)
-        node_lod1.parent = node_physics
-
-        # Collision
-        archetype = LOD1.find('Archetype')
-
-        if archetype != None:
-            node_archetype = bpy.data.objects.new('Archetype', None)
-            context.scene.collection.objects.link(node_archetype)
-            node_archetype.parent = node_lod1
-
-            archetype_name = archetype.find('Name').text
-            bounds = archetype.find('Bounds')
-            
-            node_bounds = read_composite_info(archetype_name, bounds)
-            context.scene.collection.objects.link(node_bounds)
-            node_bounds.parent = node_archetype
-
-        bones_dict = build_bones_dict(node_fragment)
-
-        for item in LOD1.find('Children').getchildren():
-
-            bone_tag = int(item.find('BoneTag').get('value'))
-
-            loc = armature.bones[bones_dict[bone_tag]].head
-
-            node_item = bpy.data.objects.new('Item', None)
-            context.scene.collection.objects.link(node_item)
-            node_item.parent = node_lod1
-
-            item_drawable = item.find('Drawable')
-            ydr_objs = read_ydr_xml(self, context, self.filepath, item_drawable, shaders)
-            # matrix = list(map(lambda line : line.strip().split(), item_drawable.find('Matrix').text.strip().split('\n')))
-
-            node_item.location = loc # should be somehow offsetted
-            
-
-            for obj in ydr_objs:
-                context.scene.collection.objects.link(obj)
-                obj.parent = node_item
-                mod = obj.modifiers.new("Armature", 'ARMATURE')
-                mod.object = node_fragment
+        fragment = read_yft_xml(self, root)
+        fragment.apply()
 
         finished = time.time()
         

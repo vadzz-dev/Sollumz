@@ -490,12 +490,7 @@ def read_geometry_info(bounds, bvh=False):
     bobj.bounds_bvh = bvh
     return bobj
 
-def read_composite_info(name, bounds):
-    
-    cobj = bpy.data.objects.new(name + "_col", None)
-        
-    if(cobj == None):
-        return #log error 
+def read_composite_info_children(bounds):
     
     children = []
     
@@ -521,6 +516,17 @@ def read_composite_info(name, bounds):
         if(childtype == "Cloth"):
             print()
             #children.append(read_cloth_info(child))
+
+    return children
+
+def read_composite_info(name, bounds):
+    
+    cobj = bpy.data.objects.new(name + "_col", None)
+        
+    if(cobj == None):
+        return #log error 
+    
+    children = read_composite_info_children(bounds)
     
     for child in children:
         bpy.context.scene.collection.objects.link(child)   
@@ -529,7 +535,7 @@ def read_composite_info(name, bounds):
     cobj.sollumtype = "Bound Composite"
 
     return cobj
-    
+
 def read_bounds(name, bounds):
     if bounds is None:
         return None

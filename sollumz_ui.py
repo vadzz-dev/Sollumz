@@ -302,6 +302,31 @@ class SollumzBonePanel(Panel):
         row.operator('sollumz_flags.new_item', text='New')
         row.operator('sollumz_flags.delete_item', text='Delete')
 
+class SollumzGroupPanel(Panel):
+    bl_parent_id = "SOLLUMZ_PT_BONE_PANEL"
+    bl_label = "Group Properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "bone"
+    
+    def draw(self, context):
+        layout = self.layout
+        bone = context.active_pose_bone.bone
+                
+        if(bone == None):
+            return
+
+        group = bone.bone_properties.group
+
+        layout.label(text="Do not touch these unless you know what you are doing!", icon="ERROR")
+        layout.prop(group, "active", text = "Active")
+
+        if(group.active == False):
+            return
+
+        layout.prop(group, "mass", text = "Mass")
+        layout.prop(group, "child", text = "Child")
+
 class SollumzAnimPanel(bpy.types.Panel):
     bl_label = "Sollumz Animation"
     bl_idname = "SOLLUMZ_PT_ANIM_PANEL"
@@ -339,6 +364,7 @@ classes = (
     SollumzMaterialPanel,
     SollumzMainPanel,
     SollumzBonePanel,
+    SollumzGroupPanel,
     SollumzAnimPanel,
     SOLLUMZ_UL_BoneFlags,
     SOLLUMZ_OT_BoneFlags_NewItem,
