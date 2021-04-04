@@ -41,6 +41,7 @@ if "bpy" in locals():
     importlib.reload(sollumz_ui)
     importlib.reload(collisionmatoperators)
     importlib.reload(tools)
+    importlib.reload(formats)
 else:
     from . import properties
     from . import shaderoperators
@@ -53,6 +54,7 @@ else:
     from . import sollumz_ui
     from . import collisionmatoperators
     from . import tools
+    from . import formats
     
 import bpy
 

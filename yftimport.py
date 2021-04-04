@@ -8,7 +8,8 @@ from bpy.types import Operator
 import time
 import random 
 from .tools import cats as Cats
-from .ydrimport import Drawable, build_bones_dict
+from .formats.ydr.drawable import Drawable, DrawableDictionary
+from .formats.ydr.utils import build_bones_dict
 from .ybnimport import read_composite_info_children
 from .ycdimport import xml_read_value, xml_read_text
 
