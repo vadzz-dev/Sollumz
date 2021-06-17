@@ -311,10 +311,11 @@ class SollumzGroupPanel(Panel):
     
     def draw(self, context):
         layout = self.layout
-        bone = context.active_pose_bone.bone
-                
-        if(bone == None):
+
+        if (context.active_pose_bone == None):
             return
+            
+        bone = context.active_pose_bone.bone
 
         group = bone.bone_properties.group
 

@@ -8,10 +8,11 @@ from bpy.types import Operator
 import time
 import random 
 from .tools import cats as Cats
-from .formats.ydr.drawable import Drawable, DrawableDictionary
-from .formats.ydr.utils import build_bones_dict
+from .resources.drawable import Drawable
+from .resources.utils import build_bones_dict
 from .ybnimport import read_composite_info_children
 from .ycdimport import xml_read_value, xml_read_text
+from .ydrimport import create_drawable 
 
 class Archetype:
     name = None
@@ -97,7 +98,7 @@ class Child:
 
         self.group_index = xml_read_value(xml.find("GroupIndex"), 0, int)
         self.tag = xml_read_value(xml.find("BoneTag"), 0, int)
-        self.drawable = Drawable(xml.find('Drawable'), filepath, shaders)
+        self.drawable = Drawable.from_xml(xml.find('Drawable'), filepath, shaders)
 
     def apply(self, child=None):
 
@@ -106,8 +107,8 @@ class Child:
             child.sollumtype = "Children"
             bpy.context.scene.collection.objects.link(child)
 
-        if self.drawable is not None and self.drawable.drawable_models is not None:
-            drawable = self.drawable.apply()
+        if self.drawable is not None:
+            drawable = create_drawable(self.drawable)
             drawable.parent = child
 
         return child
@@ -128,7 +129,7 @@ class Fragment:
         drawable_node = xml.find('Drawable')
         physics_node = xml.find('Physics')
 
-        self.drawable = Drawable(drawable_node, filepath)
+        self.drawable = Drawable.from_xml(drawable_node, filepath)
         self.archetype = None
         self.groups = None
         self.children = None
@@ -154,7 +155,7 @@ class Fragment:
         fragment_node.sollumtype = "Fragment"
         bpy.context.scene.collection.objects.link(fragment_node)
 
-        drawable_node = self.drawable.apply()
+        drawable_node = create_drawable(self.drawable)
         drawable_node.parent = fragment_node
 
         bones_dict = build_bones_dict(drawable_node)

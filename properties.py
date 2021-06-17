@@ -401,15 +401,16 @@ bpy.types.Object.bounds_rings = bpy.props.IntProperty(name="Rings", default=6, m
 bpy.types.Object.bounds_segments = bpy.props.IntProperty(name="Segments", default=12, min=3, max=100, update=bounds_update)
 bpy.types.Object.bounds_bvh = bpy.props.BoolProperty(name="BVH (Bounding volume hierarchy)", default=False, update=bounds_update)
 
-
-
 class SollumzBoneFlag(PropertyGroup):
     name: StringProperty(default="Unk0")
+
+def child_poll(self, object):
+    return object.sollumtype == "Child"
 
 class SollumzGroupProperties(PropertyGroup):
     active: BoolProperty(name = "Active", default = False)
     mass: FloatProperty(name = "Mass", default = 1000)
-    child: PointerProperty(type = bpy.types.Object)
+    child: PointerProperty(type = bpy.types.Object, poll = child_poll)
 
 class SollumzBoneProperties(PropertyGroup):
     tag: IntProperty(name = "BoneTag", default = 0, min = 0)

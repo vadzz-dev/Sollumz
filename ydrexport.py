@@ -349,15 +349,15 @@ def write_model_node(objs, materials, bones):
         print('Processing shader', shader_index, shader.name)
         vlayout = get_vertex_layout(shader.name)
 
-        data2_node = Element("Data2")
+        vdata_node = Element("Data")
         vertex_str = get_vertex_string(obj_eval, vlayout, bones, depsgraph)
-        data2_node.text = vertex_str
+        vdata_node.text = vertex_str
         
         ib_node = Element("IndexBuffer")
-        data_node = Element("Data")
-        data_node.text = get_index_string(model)
+        idata_node = Element("Data")
+        idata_node.text = get_index_string(model)
 
-        ib_node.append(data_node)
+        ib_node.append(idata_node)
         
         for p in vlayout:
             p_node = Element(p)
@@ -365,7 +365,7 @@ def write_model_node(objs, materials, bones):
         
         vb_node.append(vbflags_node)
         vb_node.append(vblayout_node)
-        vb_node.append(data2_node)
+        vb_node.append(vdata_node)
         
         i_node.append(shd_index)
         i_node.append(bbmin_node)
@@ -1087,7 +1087,8 @@ def write_ydr_xml(context, filepath):
         return "No Sollumz Drawable found to export"
     
     # xmlstr = prettify(root)
-    Formatting.prettyxml(root)
+    # Formatting.prettyxml(root)
+    ElementTree.indent(root)
     xmlstr = ElementTree.tostring(root)
     with open(filepath, "wb") as f:
         f.write(xmlstr)
@@ -1115,7 +1116,8 @@ def write_ydd_xml(context, filepath):
         return "No Sollumz Drawable found to export"
     
     # xmlstr = prettify(root)
-    Formatting.prettyxml(root)
+    # Formatting.prettyxml(root)
+    ElementTree.indent(root)
     xmlstr = ElementTree.tostring(root)
     with open(filepath, "wb") as f:
         f.write(xmlstr)

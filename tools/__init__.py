@@ -3,10 +3,9 @@ if "bpy" in locals():
     importlib.reload(cats)
     importlib.reload(meshgen)
     importlib.reload(jenkhash)
-    importlib.reload(formatting)
+    importlib.reload(xmlhelper)
 else:
     from . import cats
     from . import meshgen
-    from . import cats
     from . import jenkhash
-    from . import formatting
+    from . import xmlhelper

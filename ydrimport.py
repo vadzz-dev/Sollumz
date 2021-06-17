@@ -10,8 +10,277 @@ import time
 import random 
 from .ybnimport import read_composite_info_children 
 from .ycdimport import xml_read_value, xml_read_text
-from .formats.ydr.drawable import Drawable, DrawableDictionary
-from .formats.ydr.utils import read_ydr_shaders
+from .resources.drawable import Drawable, DrawableDictionary, DrawableModel
+from .resources.utils import read_ydr_shaders, build_bones_dict
+from .tools import cats as Cats
+
+def process_uv(uv):
+    u = uv[0]
+    v = (uv[1] * -1) + 1.0
+    return [u, v]
+
+def create_uv_layer(mesh, num, texcoords):
+    mesh.uv_layers.new()
+    uv_layer = mesh.uv_layers[num]
+    for i in range(len(uv_layer.data)):
+        uv = process_uv(texcoords[mesh.loops[i].vertex_index])
+        uv_layer.data[i].uv = uv 
+
+def create_vertexcolor_layer(mesh, num, colors):
+    mesh.vertex_colors.new(name = "Vertex Colors " + str(num)) 
+    color_layer = mesh.vertex_colors[num]
+    for i in range(len(color_layer.data)):
+        rgba = colors[mesh.loops[i].vertex_index]
+        color_layer.data[i].color = rgba
+
+def create_geometry(geometry, shaders, bones, name):
+    vertices = []
+    faces = []
+    normals = []
+    texcoords0 = []
+    texcoords1 = []
+    texcoords2 = []
+    texcoords3 = []
+    texcoords4 = []
+    texcoords5 = []
+    texcoords6 = []
+    texcoords7 = []
+    colors0 = []
+    colors1 = []
+    blendweights = []
+    blendindices = []
+
+    for v in geometry.vertex_buffer.vertices:
+        vertices.append(Vector((v.position[0], v.position[1], v.position[2])))
+        normals.append(v.normal)
+
+        if(v.texcoord0 != None):
+            texcoords0.append(v.texcoord0)
+        if(v.texcoord1 != None):
+            texcoords1.append(v.texcoord1)
+        if(v.texcoord2 != None):
+            texcoords2.append(v.texcoord2)
+        if(v.texcoord3 != None):
+            texcoords3.append(v.texcoord3)
+        if(v.texcoord4 != None):
+            texcoords4.append(v.texcoord4)
+        if(v.texcoord5 != None):
+            texcoords5.append(v.texcoord5)
+        if(v.texcoord6 != None):
+            texcoords6.append(v.texcoord6)
+        if(v.texcoord7 != None):
+            texcoords7.append(v.texcoord7)
+
+        if(v.colors0 != None):
+            colors0.append(v.colors0)
+        if(v.colors1 != None):
+            colors1.append(v.colors1)
+
+        if(v.blendweights != None):
+            blendweights.append(v.blendweights)
+        if(v.blendindices != None):
+            blendindices.append(v.blendindices)
+
+    for i in geometry.index_buffer:
+        faces.append(i)
+
+    mesh = bpy.data.meshes.new("Geometry")
+    mesh.from_pydata(vertices, [], faces)
+    verts_num = mesh.vertices
+    mesh.create_normals_split()
+    mesh.validate(clean_customdata=False)
+    polygon_count = len(mesh.polygons)
+    mesh.polygons.foreach_set("use_smooth", [True] * polygon_count)
+    # maybe normals_split_custom_set_from_vertices(self.normals) is better?
+    if len(normals) > 0:
+        normals_fixed = []
+        for l in mesh.loops:
+            normals_fixed.append(normals[l.vertex_index])
+        
+        mesh.normals_split_custom_set(normals_fixed)
+
+    mesh.use_auto_smooth = True
+
+    # set uvs
+    uv_layer_count = 0
+    if(len(texcoords0) > 0):
+        create_uv_layer(mesh, uv_layer_count, texcoords0)
+        uv_layer_count += 1
+    if(len(texcoords1) > 0):
+        create_uv_layer(mesh, uv_layer_count, texcoords1)
+        uv_layer_count += 1
+    if(len(texcoords2) > 0):
+        create_uv_layer(mesh, uv_layer_count, texcoords2)
+        uv_layer_count += 1
+    if(len(texcoords3) > 0):
+        create_uv_layer(mesh, uv_layer_count, texcoords3)
+        uv_layer_count += 1
+    if(len(texcoords4) > 0):
+        create_uv_layer(mesh, uv_layer_count, texcoords4)
+        uv_layer_count += 1
+    if(len(texcoords5) > 0):
+        create_uv_layer(mesh, uv_layer_count, texcoords5)
+        uv_layer_count += 1
+    if(len(texcoords6) > 0):
+        create_uv_layer(mesh, uv_layer_count, texcoords6)
+        uv_layer_count += 1
+    if(len(texcoords7) > 0):
+        create_uv_layer(mesh, uv_layer_count, texcoords7)
+        uv_layer_count += 1
+    
+    #set vertex colors
+    if(len(colors0) > 0):
+        create_vertexcolor_layer(mesh, 0, colors0)
+    if(len(colors1) > 0):
+        create_vertexcolor_layer(mesh, 1, colors1)
+    
+    #set tangents - .tangent is read only so can't set them
+    #for poly in mesh.polygons:
+        #for idx in poly.loop_indicies:
+            #mesh.loops[i].tangent = tangents[i]    
+
+    obj = bpy.data.objects.new(name.replace(".#dr", "") + "_mesh", mesh)
+    
+    #load weights
+    if (bones != None and len(bones) > 0 and len(blendweights) > 0 and len(verts_num) > 0):
+        for i in range(256):
+            if (i < len(bones)):
+                obj.vertex_groups.new(name=bones[i].name)
+            else:
+                obj.vertex_groups.new(name="UNKNOWN_BONE." + str(i))
+
+        for vertex_idx in range(len(verts_num)):
+            for i in range(0, 4):
+                weight = blendweights[vertex_idx][i] / 255
+                index = blendindices[vertex_idx][i]
+                if (weight > 0.0):
+                    obj.vertex_groups[index].add([vertex_idx], weight, "ADD")
+
+        Cats.remove_unused_vertex_groups_of_mesh(obj)
+
+    obj.data.materials.append(shaders[geometry.shader_index])
+
+    return obj
+
+def create_drawable_model(drawable_model, shaders, bones, name):
+    
+    if drawable_model.geometries is not None:
+        objs = []
+        for mesh in drawable_model.geometries:
+            obj = create_geometry(mesh, shaders, bones, name)
+            obj.sollumtype = "Geometry"
+            # obj.level_of_detail = drawable_model.key
+            obj.mask = drawable_model.render_mask
+            bpy.context.scene.collection.objects.link(obj)
+            objs.append(obj)
+
+    return objs
+
+def create_drawable(drawable, armature=None, bones_override=None):
+
+    if armature is None:
+        skel = bpy.data.armatures.new(drawable.name + ".skel")
+        armature = bpy.data.objects.new(drawable.name, skel)
+        armature.sollumtype = "Drawable"
+        bpy.context.scene.collection.objects.link(armature)
+
+        armature.drawble_distance_high = drawable.lod_dist_high
+        armature.drawble_distance_medium = drawable.lod_dist_med
+        armature.drawble_distance_low = drawable.lod_dist_low
+        armature.drawble_distance_vlow = drawable.lod_dist_vlow
+
+    bpy.context.view_layer.objects.active = armature
+
+    bones = drawable.get_bones()
+    if bones is not None:
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        for bone in bones:
+            _bone = bone.create(armature)
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        for bone in bones:
+            bone.set_properties(armature)
+
+    if len(drawable.joints) > 0:
+        bones_dict = build_bones_dict(armature)
+        if bones_dict is not None:
+            for joint in drawable.joints:
+                bone = armature.pose.bones.get(bones_dict[joint.tag])
+                joint.apply(bone)
+
+    if bones_override is not None:
+        bones = bones_override
+
+    for dm in drawable.drawable_models_high:
+        model = create_drawable_model(dm, drawable.shaders, bones, drawable.name)
+        DrawableModel.set_parent(model, armature)
+
+    for dm in drawable.drawable_models_med:
+        model = create_drawable_model(dm, drawable.shaders, bones, drawable.name)
+        DrawableModel.set_parent(model, armature)
+
+    for dm in drawable.drawable_models_low:
+        model = create_drawable_model(dm, drawable.shaders, bones, drawable.name)
+        DrawableModel.set_parent(model, armature)
+
+    for dm in drawable.drawable_models_vlow:
+        model = create_drawable_model(dm, drawable.shaders, bones, drawable.name)
+        DrawableModel.set_parent(model, armature)
+
+    if len(drawable.bounds) > 0:
+        cobj = bpy.data.objects.new(drawable.name + "_col", None)
+        
+        if(cobj == None):
+            return #log error 
+        
+        for child in drawable.bounds:
+            bpy.context.scene.collection.objects.link(child)
+            child.parent = cobj 
+            
+        cobj.sollumtype = "Bound Composite"
+        cobj.parent = armature
+        bpy.context.scene.collection.objects.link(cobj)
+
+    return armature
+
+def create_drawable_dict(drawable_dict, filepath):
+
+    name = os.path.basename(filepath)[:-8]
+    vmodels = []
+    # bones are shared in single ydd however they still have to be placed under a paticular drawable
+
+    armature_with_bones_obj = None
+    mod_objs = []
+    bones_override = None
+    if drawable_dict.drawable_with_bones is not None:
+        bones_override = drawable_dict.drawable_with_bones.get_bones()
+
+    for drawable in drawable_dict.drawables:
+        vmodel_obj = create_drawable(drawable, None, bones_override)
+        if (armature_with_bones_obj == None and drawable_dict.drawable_with_bones != None):
+            armature_with_bones_obj = vmodel_obj
+
+        for obj in vmodel_obj.children:
+            mod_objs.append(obj)
+            
+        vmodels.append(vmodel_obj)
+    
+    vmodel_dict_obj = bpy.data.objects.new(name, None)
+    vmodel_dict_obj.sollumtype = "Drawable Dictionary"
+
+    for vmodel in vmodels:
+        vmodel.parent = vmodel_dict_obj
+    
+    bpy.context.scene.collection.objects.link(vmodel_dict_obj)
+
+    if (armature_with_bones_obj != None):
+        for obj in mod_objs:
+            mod = obj.modifiers["Armature"]
+            mod.object = armature_with_bones_obj
+
+    return vmodel_dict_obj
 
 def read_ydr_xml(self, context, filepath, root):
 
@@ -24,13 +293,13 @@ def read_ydr_xml(self, context, filepath, root):
         model_name = name
 
     shaders = read_ydr_shaders(self, context, filepath, root)
-    drawable = Drawable(root, filepath, shaders)
+    drawable = Drawable.from_xml(root, filepath)
 
     return drawable
 
 def read_ydd_xml(self, context, filepath, root):
 
-    drawable_dict = DrawableDictionary(root, filepath)
+    drawable_dict = DrawableDictionary.from_xml(root, filepath)
 
     return drawable_dict
 
@@ -55,7 +324,7 @@ class ImportYDR(Operator, ImportHelper):
         root = tree.getroot()
 
         drawable = read_ydr_xml(self, context, self.filepath, root)
-        vmodel_obj = drawable.apply()
+        vmodel_obj = create_drawable(drawable)
 
         finished = time.time()
         
@@ -90,7 +359,7 @@ class ImportYDD(Operator, ImportHelper):
 
         name = os.path.basename(self.filepath)[:-8]
         drawable_dict = read_ydd_xml(self, context, self.filepath, root)
-        drawable_dict.apply(self.filepath)
+        create_drawable_dict(drawable_dict, self.filepath)
 
         finished = time.time()
         

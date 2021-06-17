@@ -2200,7 +2200,7 @@ ped_defaultsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_cutoutsps = [
-                ShaderProperty("Layout", PBBNCCTTX),
+                ShaderProperty("Layout", PBBNCCT),
                 ShaderProperty("RenderBucket", 3),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
@@ -2216,7 +2216,7 @@ ped_default_cutoutsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_clothsps = [
-                ShaderProperty("Layout", PBBNCCTTX),
+                ShaderProperty("Layout", PBBNCCT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2231,7 +2231,7 @@ ped_default_clothsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_enveffsps = [
-                ShaderProperty("Layout", PBBNCCTTX),
+                ShaderProperty("Layout", PBBNCCT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2247,7 +2247,7 @@ ped_default_enveffsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_mpsps = [
-                ShaderProperty("Layout", PBBNCCTTX),
+                ShaderProperty("Layout", PBBNCCT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
@@ -2262,7 +2262,7 @@ ped_default_mpsps = [
                 ShaderProperty("Value", "StubbleControl", 2.0, 0.6, 0.0, 0.0)]
 
 ped_default_palettesps = [
-                ShaderProperty("Layout", PBBNCCTTX),
+                ShaderProperty("Layout", PBBNCCT),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "VolumeSampler"),
                 ShaderProperty("Image", "BumpSampler"),
