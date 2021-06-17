@@ -7,7 +7,6 @@ from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from xml.dom import minidom
 from mathutils import Vector, Matrix
 from collections import deque
-from .tools import formatting as Formatting
 import os 
 import sys 
 import shutil
