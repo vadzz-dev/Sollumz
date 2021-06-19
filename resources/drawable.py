@@ -419,32 +419,28 @@ class Drawable:
             for node in dmh:
                 dm = DrawableModel()
                 dm.read_xml(node)
-
-            self.drawable_models_high.append(dm)
+                self.drawable_models_high.append(dm)
 
         dmm = root.find("DrawableModelsMed")
         if(dmm != None):
             for node in dmm:
                 dm = DrawableModel()
                 dm.read_xml(node)
-
-            self.drawable_models_med.append(dm)
+                self.drawable_models_med.append(dm)
 
         dml = root.find("DrawableModelsLow")
         if(dml != None):
             for node in dml:
                 dm = DrawableModel()
                 dm.read_xml(node)
-
-            self.drawable_models_low.append(dm)
+                self.drawable_models_low.append(dm)
 
         dmvl = root.find("DrawableModelsVlow")
         if(dmvl != None):
             for node in dmvl:
                 dm = DrawableModel()
                 dm.read_xml(node)
-                
-            self.drawable_models_vlow.append(dm)
+                self.drawable_models_vlow.append(dm)
 
         bound_node = root.find("Bounds")
         if bound_node is not None:
@@ -461,6 +457,21 @@ class Drawable:
             return None
 
         return self.skeleton.bones
+
+    def is_empty(self):
+        if len(self.drawable_models_high) > 0:
+            return False
+
+        if len(self.drawable_models_med) > 0:
+            return False
+
+        if len(self.drawable_models_low) > 0:
+            return False
+
+        if len(self.drawable_models_vlow) > 0:
+            return False
+
+        return True
 
 class DrawableDictionary:
 

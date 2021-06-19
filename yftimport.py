@@ -55,13 +55,14 @@ class Archetype:
         return self.bounds
 
 class Group:
-    name = None
-    children_part_index = None
-    parent_index = None
-    children_child_index = None
-    children_num = None
-    children_groups_num = None
-    mass = None
+
+    # both group and child can be the children of a group, similar but somehow different to how bones are structured
+    # Index - index of the first child of the group's children
+    # ParentIndex - index of parent group
+    # UnkByte4C - index of first group of the group's children
+    # UnkByte4F - the number of children
+    # UnkByte50 - the number of groups
+    # the rest of unk stuffs are to be researched, usually identical in general cases
 
     def __init__(self, xml):
 
@@ -69,11 +70,11 @@ class Group:
             return
 
         self.name = xml_read_text(xml.find("Name"), "", str)
-        self.children_part_index = xml_read_value(xml.find("Index"), 0, int)
-        self.parent_index = xml_read_value(xml.find("ParentIndex"), 0, int)
-        self.children_child_index = xml_read_value(xml.find("UnkByte4C"), 0, int)
-        self.children_num = xml_read_value(xml.find("UnkByte4F"), 0, int)
-        self.children_groups_num = xml_read_value(xml.find("UnkByte50"), 0, int)
+        self.child_children_index = xml_read_value(xml.find("Index"), 0, int)
+        self.group_parent_index = xml_read_value(xml.find("ParentIndex"), 0, int)
+        self.group_children_index = xml_read_value(xml.find("UnkByte4C"), 0, int)
+        self.child_children_num = xml_read_value(xml.find("UnkByte4F"), 0, int)
+        self.group_children_num = xml_read_value(xml.find("UnkByte50"), 0, int)
         self.mass = xml_read_value(xml.find("Mass"), 0, float)
 
     def set_properties(self, bone=None, child=None):
@@ -86,10 +87,8 @@ class Group:
         bone.bone_properties.group.child = child
 
 class Child:
-    group_index = None
-    tag = None
-    drawable = None
-    bounds = None
+
+    # bounds can be linked to a child, as we got the same number of children and bounds in one fragment 
 
     def __init__(self, xml, filepath, shaders):
 
@@ -99,6 +98,7 @@ class Child:
         self.group_index = xml_read_value(xml.find("GroupIndex"), 0, int)
         self.tag = xml_read_value(xml.find("BoneTag"), 0, int)
         self.drawable = Drawable.from_xml(xml.find('Drawable'), filepath, shaders)
+        self.bounds = []
 
     def apply(self, child=None):
 
@@ -108,42 +108,36 @@ class Child:
             bpy.context.scene.collection.objects.link(child)
 
         if self.drawable is not None:
-            drawable = create_drawable(self.drawable)
-            drawable.parent = child
+            drawable = create_drawable(self.drawable, clean=True)
+            if drawable is not None:
+                drawable.parent = child
 
         return child
 
 class Fragment:
-    name = None
-    drawable = None
-    archetype = None
-    groups = None
-    children = None
 
     def __init__(self, xml, filepath):
 
         if xml is None:
             return
 
-        self.name = xml_read_text(xml.find("Name"), "Fragment", str)
         drawable_node = xml.find('Drawable')
         physics_node = xml.find('Physics')
 
+        self.name = xml_read_text(xml.find("Name"), "Fragment", str)
         self.drawable = Drawable.from_xml(drawable_node, filepath)
         self.archetype = None
-        self.groups = None
-        self.children = None
+        self.groups = []
+        self.children = []
 
         if physics_node is not None:
             lod1_node = physics_node.find('LOD1')
             self.archetype = Archetype(lod1_node.find('Archetype'))
 
-            self.groups = []
             for group_node in lod1_node.find("Groups"):
                 group = Group(group_node)
                 self.groups.append(group)
 
-            self.children = []
             shaders = self.drawable.shaders
             for children_node in lod1_node.find("Children"):
                 child = Child(children_node, filepath, shaders)
@@ -163,7 +157,7 @@ class Fragment:
         if self.archetype is not None:
             bounds = self.archetype.apply_clean()
 
-        if self.children is not None:
+        if len(self.children):
             children_node = bpy.data.objects.new(self.name + "_children", None)
             children_node.parent = fragment_node
             bpy.context.scene.collection.objects.link(children_node)

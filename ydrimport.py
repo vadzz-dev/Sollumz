@@ -176,7 +176,11 @@ def create_drawable_model(drawable_model, shaders, bones, name):
 
     return objs
 
-def create_drawable(drawable, armature=None, bones_override=None):
+def create_drawable(drawable, armature=None, bones_override=None, clean=False):
+
+    if clean is True:
+        if drawable.is_empty() is True:
+            return None
 
     if armature is None:
         skel = bpy.data.armatures.new(drawable.name + ".skel")
