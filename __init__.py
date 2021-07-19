@@ -32,6 +32,7 @@ if "bpy" in locals():
     import importlib
     importlib.reload(properties)
     importlib.reload(shaderoperators)
+    importlib.reload(sollumz_shaders)
     importlib.reload(ydrimport)
     importlib.reload(ydrexport)
     importlib.reload(ybnimport)
@@ -45,6 +46,7 @@ if "bpy" in locals():
 else:
     from . import properties
     from . import shaderoperators
+    from . import sollumz_shaders
     from . import ydrimport
     from . import ydrexport 
     from . import ybnimport 

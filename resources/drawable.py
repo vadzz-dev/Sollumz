@@ -7,8 +7,8 @@ from mathutils import Vector, Quaternion, Matrix
 from ..ycdimport import xml_read_value, xml_read_text
 from ..ybnimport import read_composite_info_children
 from ..tools import xmlhelper
-from .utils import read_ydr_shaders
-    
+from .shader import ShaderGroup
+
 class Bone:
 
     def __init__(self):
@@ -59,9 +59,9 @@ class Bone:
         self.scale.y = float(scale_item.attrib["y"])
         self.scale.z = float(scale_item.attrib["z"])
 
-    @classmethod
-    def from_xml(cls, root):
-        bone = cls()
+    @staticmethod
+    def from_xml(root):
+        bone = Bone()
         bone.read_xml(root)
         return bone
 
@@ -117,13 +117,12 @@ class Skeleton:
         self.unknown_58 = xmlhelper.ReadInt(root.find("Unknown58"))
 
         for node in root.find("Bones"):
-            b = Bone()
-            b.read_xml(node)
+            b = Bone().from_xml(node)
             self.bones.append(b)
 
-    @classmethod
-    def from_xml(cls, root):
-        skel = cls()
+    @staticmethod
+    def from_xml(root):
+        skel = Skeleton()
         skel.read_xml(root)
         return skel
 
@@ -320,9 +319,9 @@ class Geometry:
 
         self.index_buffer = [i_buf[i * 3:(i + 1) * 3] for i in range((len(i_buf) + 3 - 1) // 3 )] #split index buffer into 3s for each triangle
 
-    @classmethod
-    def from_xml(cls, root):
-        geo = cls()
+    @staticmethod
+    def from_xml(root):
+        geo = Geometry()
         geo.read_xml(root)
         return geo
 
@@ -352,9 +351,9 @@ class DrawableModel:
             d_obj = Geometry.from_xml(model)
             self.geometries.append(d_obj)
 
-    @classmethod
-    def from_xml(cls, root):
-        model = cls()
+    @staticmethod
+    def from_xml(root):
+        model = DrawableModel()
         model.read_xml(root)
         return model
 
@@ -369,18 +368,28 @@ class Drawable:
     def __init__(self):
 
         self.name = "Drawable"
+        self.bounding_sphere_center = [0, 0, 0]
+        self.bounding_sphere_radius = 0
+        self.bounding_box_min = [0, 0, 0]
+        self.bounding_box_max = [0, 0, 0]
         self.lod_dist_high = 0 #9998?
         self.lod_dist_med= 0 #9998?
         self.lod_dist_low = 0 #9998?
         self.lod_dist_vlow = 0 #9998?
-        self.shaders = []
+        self.flags_high = 0 
+        self.flags_med = 0 
+        self.flags_low = 0  
+        self.flags_vlow = 0
+        self.unknown_9A = 0
+
+        self.shader_group = None
         self.skeleton = None
+        self.bounds = []
         self.joints = []
         self.drawable_models_high = []
         self.drawable_models_med = []
         self.drawable_models_low = []
         self.drawable_models_vlow = []
-        self.bounds = []
 
     def read_xml(self, root, filepath, shaders=None):
 
@@ -397,10 +406,11 @@ class Drawable:
         self.lod_dist_low = float(root.find("LodDistLow").attrib["value"])
         self.lod_dist_vlow = float(root.find("LodDistVlow").attrib["value"])
 
-        if shaders is None:
-            self.shaders = read_ydr_shaders(self, bpy.context, filepath, root)
-        else:
-            self.shaders = shaders
+        sg = root.find("ShaderGroup")
+        if(sg != None):
+            shader_group = ShaderGroup()
+            shader_group.read_xml(root.find("ShaderGroup"))
+            self.shader_group = shader_group
 
         skeleton_node = root.find("Skeleton")
         if skeleton_node is not None:
@@ -442,13 +452,13 @@ class Drawable:
                 dm.read_xml(node)
                 self.drawable_models_vlow.append(dm)
 
-        bound_node = root.find("Bounds")
-        if bound_node is not None:
-            self.bounds = read_composite_info_children(bound_node)
+        bounds_node = root.find("Bounds")
+        if bounds_node is not None:
+            self.bounds = read_composite_info_children(bounds_node)
 
-    @classmethod
-    def from_xml(cls, root, filepath, shaders=None):
-        drawable = cls()
+    @staticmethod
+    def from_xml(root, filepath, shaders=None):
+        drawable = Drawable()
         drawable.read_xml(root, filepath, shaders)
         return drawable
 
@@ -478,7 +488,6 @@ class DrawableDictionary:
     def __init__(self):
 
         self.drawables = []
-        self.drawable_with_bones = None
 
     def read_xml(self, root, filepath):
 
@@ -490,14 +499,10 @@ class DrawableDictionary:
                 continue
 
             drawable = Drawable.from_xml(item, filepath)
-
-            if drawable.get_bones() is not None:
-                self.drawable_with_bones = drawable
-
             self.drawables.append(drawable)
 
-    @classmethod
-    def from_xml(cls, root, filepath):
-        drawable_dict = cls()
+    @staticmethod
+    def from_xml(root, filepath):
+        drawable_dict = DrawableDictionary()
         drawable_dict.read_xml(root, filepath)
         return drawable_dict

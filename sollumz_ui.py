@@ -182,62 +182,63 @@ class SollumzMaterialPanel(bpy.types.Panel):
                 row = box.row()
                 
                 row.prop(n, "texture_name")
-                if(n.image != None):
-                    row.prop(n.image, "filepath", text= "Texture Path:")
-                    #n.texture_name = os.path.basename(n.image.filepath)
                 
                 row.prop(n, "embedded")
                 
-                row = box.row()
-                #row.prop(specnode, "type") #gims fault
-                row.prop(n, "format_type")
-                
-                #row = box.row() #gims fault
-                row.prop(n, "usage")
-                
-                uf_box = box.box()
-                uf_box.label(text = "Usage Flags:")
-                uf_row = uf_box.row()
-                uf_row.prop(n, "not_half")
-                uf_row.prop(n, "hd_split")
-                uf_row.prop(n, "flag_full")
-                uf_row.prop(n, "maps_half")
-                uf_row = uf_box.row()
-                uf_row.prop(n, "x2")
-                uf_row.prop(n, "x4")
-                uf_row.prop(n, "y4")
-                uf_row.prop(n, "x8")
-                uf_row = uf_box.row()
-                uf_row.prop(n, "x16")
-                uf_row.prop(n, "x32")
-                uf_row.prop(n, "x64")
-                uf_row.prop(n, "y64")
-                uf_row = uf_box.row()
-                uf_row.prop(n, "x128")
-                uf_row.prop(n, "x256")
-                uf_row.prop(n, "x512")
-                uf_row.prop(n, "y512")
-                uf_row = uf_box.row()
-                uf_row.prop(n, "x1024")
-                uf_row.prop(n, "y1024")
-                uf_row.prop(n, "x2048")
-                uf_row.prop(n, "y2048")
-                uf_row = uf_box.row()
-                uf_row.prop(n, "embeddedscriptrt")
-                uf_row.prop(n, "unk19")
-                uf_row.prop(n, "unk20")
-                uf_row.prop(n, "unk21")
-                uf_row = uf_box.row()
-                uf_row.prop(n, "unk24")
-                
-                uf_box.prop(n, "extra_flags")
+                if n.embedded:
+                    uf_box = box.box()
+                    uf_box.label(text = "Texture")
+                    if(n.image != None):
+                        uf_box.prop(n.image, "filepath", text= "Texture Path:")
+                        #n.texture_name = os.path.basename(n.image.filepath)
+
+                    #row.prop(specnode, "type") #gims fault
+                    uf_box.prop(n, "format_type")
+                    
+                    #row = box.row() #gims fault
+                    uf_box.prop(n, "usage")
+                    uf_box.label(text = "Usage Flags:")
+                    uf_row = uf_box.row()
+                    uf_row.prop(n, "not_half")
+                    uf_row.prop(n, "hd_split")
+                    uf_row.prop(n, "flag_full")
+                    uf_row.prop(n, "maps_half")
+                    uf_row = uf_box.row()
+                    uf_row.prop(n, "x2")
+                    uf_row.prop(n, "x4")
+                    uf_row.prop(n, "y4")
+                    uf_row.prop(n, "x8")
+                    uf_row = uf_box.row()
+                    uf_row.prop(n, "x16")
+                    uf_row.prop(n, "x32")
+                    uf_row.prop(n, "x64")
+                    uf_row.prop(n, "y64")
+                    uf_row = uf_box.row()
+                    uf_row.prop(n, "x128")
+                    uf_row.prop(n, "x256")
+                    uf_row.prop(n, "x512")
+                    uf_row.prop(n, "y512")
+                    uf_row = uf_box.row()
+                    uf_row.prop(n, "x1024")
+                    uf_row.prop(n, "y1024")
+                    uf_row.prop(n, "x2048")
+                    uf_row.prop(n, "y2048")
+                    uf_row = uf_box.row()
+                    uf_row.prop(n, "embeddedscriptrt")
+                    uf_row.prop(n, "unk19")
+                    uf_row.prop(n, "unk20")
+                    uf_row.prop(n, "unk21")
+                    uf_row = uf_box.row()
+                    uf_row.prop(n, "unk24")
+                    
+                    uf_box.prop(n, "extra_flags")
                 
             prevname = ""
             #value_nodes.insert(1, value_nodes.pop(len(value_nodes) - 1)) #shift last item to second because params are messed up for some reason ? (fixed?)
             for n in value_nodes:
                 if(n.name[:-2] not in prevname):
                     #new parameter
-                    parambox = box.box()
+                    parambox = shader_box.box()
                     parambox.label(text = param_name_to_title(n.name)) 
                       
                 parambox.prop(n.outputs[0], "default_value", text = n.name[-1].upper())

@@ -10,7 +10,7 @@ import sys
 import shutil
 import ntpath
 from datetime import datetime 
-from .ydrexport import get_obj_children, get_bbs, get_sphere_bb, prettify
+from .ydrexport import get_obj_children, get_bbs, get_sphere_bb
 
 def append_bbs(obj, node):
 #    children = get_obj_children(obj)
@@ -345,8 +345,9 @@ def write_ybn_xml(context, filepath):
 
     print("*** Complete ***")
     
-    xmlstr = prettify(root)
-    with open(filepath, "w") as f:
+    ElementTree.indent(root)
+    xmlstr = ElementTree.tostring(root)
+    with open(filepath, "wb") as f:
         f.write(xmlstr)
         return "Sollumz Drawable was succesfully exported to " + filepath
             

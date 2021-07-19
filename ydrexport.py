@@ -15,11 +15,6 @@ from datetime import datetime
 from . import shaderoperators as Shader
 from .tools import jenkhash as JenkHash
 
-def prettify(elem):
-    rough_string = tostring(elem, encoding='UTF-8')
-    reparsed = minidom.parseString(rough_string)
-    return reparsed.toprettyxml(indent=" ")
-
 def get_obj_children(obj):
     children = [] 
     objects = bpy.context.scene.objects
@@ -548,11 +543,19 @@ def write_tditem_node(exportpath, mat):
                     if(os.path.isdir(os.path.dirname(exportpath) + foldername) == False):
                         os.mkdir(os.path.dirname(exportpath) + foldername)
                     
+                    sane_path = lambda p: os.path.abspath(bpy.path.abspath(p))
+
                     txtpath = node.image.filepath
+                    if txtpath.startswith('//') is True:
+                        txtpath = sane_path(txtpath)
+
                     dstpath = os.path.dirname(exportpath) + foldername + "\\" + os.path.basename(node.image.filepath)
                     # SameFileError
                     if txtpath != dstpath:
-                        shutil.copyfile(txtpath, dstpath)
+                        try:
+                            shutil.copyfile(txtpath, dstpath)
+                        except:
+                            print("Error copying " + txtpath + " to " + dstpath)
                 else:
                     print("Missing Embedded Texture, please supply texture! The texture will not be copied to the texture folder until entered!")
 
@@ -1129,6 +1132,7 @@ class ExportYDR(Operator, ExportHelper):
 
     # ExportHelper mixin class uses this
     filename_ext = ".ydr.xml"
+    check_extension = None
 
     filter_glob: StringProperty(
         default="*.ydr.xml",
@@ -1162,6 +1166,7 @@ class ExportYDD(Operator, ExportHelper):
 
     # ExportHelper mixin class uses this
     filename_ext = ".ydd.xml"
+    check_extension = None
 
     filter_glob: StringProperty(
         default="*.ydd.xml",

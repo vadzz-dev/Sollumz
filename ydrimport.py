@@ -11,8 +11,9 @@ import random
 from .ybnimport import read_composite_info_children 
 from .ycdimport import xml_read_value, xml_read_text
 from .resources.drawable import Drawable, DrawableDictionary, DrawableModel
-from .resources.utils import read_ydr_shaders, build_bones_dict
+from .resources.utils import build_bones_dict
 from .tools import cats as Cats
+from .sollumz_shaders import create_material
 
 def process_uv(uv):
     u = uv[0]
@@ -33,7 +34,7 @@ def create_vertexcolor_layer(mesh, num, colors):
         rgba = colors[mesh.loops[i].vertex_index]
         color_layer.data[i].color = rgba
 
-def create_geometry(geometry, shaders, bones, name):
+def create_geometry(geometry, bones, name):
     vertices = []
     faces = []
     normals = []
@@ -143,7 +144,8 @@ def create_geometry(geometry, shaders, bones, name):
     
     #load weights
     if (bones != None and len(bones) > 0 and len(blendweights) > 0 and len(verts_num) > 0):
-        for i in range(256):
+        num = max(256, len(bones))
+        for i in range(num):
             if (i < len(bones)):
                 obj.vertex_groups.new(name=bones[i].name)
             else:
@@ -158,21 +160,21 @@ def create_geometry(geometry, shaders, bones, name):
 
         Cats.remove_unused_vertex_groups_of_mesh(obj)
 
-    obj.data.materials.append(shaders[geometry.shader_index])
-
     return obj
 
-def create_drawable_model(drawable_model, shaders, bones, name):
+def create_drawable_model(drawable_model, materials, bones, name):
     
-    if drawable_model.geometries is not None:
-        objs = []
-        for mesh in drawable_model.geometries:
-            obj = create_geometry(mesh, shaders, bones, name)
-            obj.sollumtype = "Geometry"
-            # obj.level_of_detail = drawable_model.key
-            obj.mask = drawable_model.render_mask
-            bpy.context.scene.collection.objects.link(obj)
-            objs.append(obj)
+    objs = []
+    for mesh in drawable_model.geometries:
+        obj = create_geometry(mesh, bones, name)
+        obj.sollumtype = "Geometry"
+        # obj.level_of_detail = drawable_model.key
+        obj.mask = drawable_model.render_mask
+        if materials is not None:
+            obj.data.materials.append(materials[mesh.shader_index])
+            
+        bpy.context.scene.collection.objects.link(obj)
+        objs.append(obj)
 
     return objs
 
@@ -217,20 +219,28 @@ def create_drawable(drawable, armature=None, bones_override=None, clean=False):
     if bones_override is not None:
         bones = bones_override
 
+    materials = None
+    if (drawable.shader_group is not None):
+        shaders = drawable.shader_group.shaders
+        texture_dictionary = drawable.shader_group.texture_dictionary
+        materials = []
+        for shader in shaders:
+            materials.append(create_material(shader, texture_dictionary))
+
     for dm in drawable.drawable_models_high:
-        model = create_drawable_model(dm, drawable.shaders, bones, drawable.name)
+        model = create_drawable_model(dm, materials, bones, drawable.name)
         DrawableModel.set_parent(model, armature)
 
     for dm in drawable.drawable_models_med:
-        model = create_drawable_model(dm, drawable.shaders, bones, drawable.name)
+        model = create_drawable_model(dm, materials, bones, drawable.name)
         DrawableModel.set_parent(model, armature)
 
     for dm in drawable.drawable_models_low:
-        model = create_drawable_model(dm, drawable.shaders, bones, drawable.name)
+        model = create_drawable_model(dm, materials, bones, drawable.name)
         DrawableModel.set_parent(model, armature)
 
     for dm in drawable.drawable_models_vlow:
-        model = create_drawable_model(dm, drawable.shaders, bones, drawable.name)
+        model = create_drawable_model(dm, materials, bones, drawable.name)
         DrawableModel.set_parent(model, armature)
 
     if len(drawable.bounds) > 0:
@@ -257,13 +267,15 @@ def create_drawable_dict(drawable_dict, filepath):
 
     armature_with_bones_obj = None
     mod_objs = []
-    bones_override = None
-    if drawable_dict.drawable_with_bones is not None:
-        bones_override = drawable_dict.drawable_with_bones.get_bones()
+    drawable_with_bones = None
+    for drawable in drawable_dict.drawables:
+        if drawable.get_bones() is not None:
+            drawable_with_bones = drawable
+            break
 
     for drawable in drawable_dict.drawables:
-        vmodel_obj = create_drawable(drawable, None, bones_override)
-        if (armature_with_bones_obj == None and drawable_dict.drawable_with_bones != None):
+        vmodel_obj = create_drawable(drawable, None, drawable_with_bones.get_bones())
+        if (armature_with_bones_obj == None and drawable_with_bones is not None and drawable.skeleton is not None):
             armature_with_bones_obj = vmodel_obj
 
         for obj in vmodel_obj.children:
@@ -279,9 +291,12 @@ def create_drawable_dict(drawable_dict, filepath):
     
     bpy.context.scene.collection.objects.link(vmodel_dict_obj)
 
-    if (armature_with_bones_obj != None):
+    if (armature_with_bones_obj is not None):
         for obj in mod_objs:
-            mod = obj.modifiers["Armature"]
+            mod = obj.modifiers.get("Armature")
+            if mod is None:
+                continue
+
             mod.object = armature_with_bones_obj
 
     return vmodel_dict_obj
@@ -296,7 +311,6 @@ def read_ydr_xml(self, context, filepath, root):
     if model_name == None:
         model_name = name
 
-    shaders = read_ydr_shaders(self, context, filepath, root)
     drawable = Drawable.from_xml(root, filepath)
 
     return drawable
