@@ -1,10 +1,9 @@
-import bpy
 import os
 import xml.etree.ElementTree as ET
 import time
 from xml.etree.ElementTree import Element
 from mathutils import Vector, Quaternion, Matrix
-from ..ycdimport import xml_read_value, xml_read_text
+from ..ycdimport import xml_read_text
 from ..ybnimport import read_composite_info_children
 from ..tools import xmlhelper
 from .shader import ShaderGroup
@@ -16,12 +15,12 @@ class Bone:
         self.tag = 0
         self.index = 0
         self.parent_index = 0
-        self.sibling_index =0 
+        self.sibling_index = 0 
         self.flags = []
-        self.translation = []
-        self.rotation = []
-        self.scale = []
-        self.transform_unk = []
+        self.translation = Vector()
+        self.rotation = Quaternion()
+        self.scale = Vector()
+        self.transform_unk = Quaternion()
 
     def read_xml(self, root):
 
@@ -65,42 +64,6 @@ class Bone:
         bone.read_xml(root)
         return bone
 
-    def create(self, armature):
-
-        if armature is None:
-            return None
-
-        # bpy.context.view_layer.objects.active = armature
-        edit_bone = armature.data.edit_bones.new(self.name)
-        if self.parent_index != -1:
-            edit_bone.parent = armature.data.edit_bones[self.parent_index]
-
-        # https://github.com/LendoK/Blender_GTA_V_model_importer/blob/master/importer.py
-        mat_rot = self.rotation.to_matrix().to_4x4()
-        mat_loc = Matrix.Translation(self.translation)
-        mat_sca = Matrix.Scale(1, 4, self.scale)
-
-        edit_bone.head = (0,0,0)
-        edit_bone.tail = (0,0.05,0)
-        edit_bone.matrix = mat_loc @ mat_rot @ mat_sca
-        if edit_bone.parent != None:
-            edit_bone.matrix = edit_bone.parent.matrix @ edit_bone.matrix
-
-        return self.name
-
-    def set_properties(self, armature):
-
-        bone = armature.pose.bones[self.name].bone
-        bone.bone_properties.tag = self.tag
-        # LimitRotation and Unk0 have their special meanings, can be deduced if needed when exporting
-        flags_restricted = set(["LimitRotation", "Unk0"])
-        for _flag in self.flags:
-            if (_flag in flags_restricted):
-                continue
-
-            flag = bone.bone_properties.flags.add()
-            flag.name = _flag
-
 class Skeleton:
 
     def __init__(self):
@@ -135,7 +98,7 @@ class Joint:
     def __init__(self, xml, type):
 
         self.type = type
-        self.tag = xml_read_value(xml.find("BoneId"), 0, int)
+        self.tag = xmlhelper.ReadInt(xml.find("BoneId"))
 
         min_item = xml.find("Min")
         self.min = Vector()
@@ -168,7 +131,7 @@ class Joint:
 
         return bone.name
 
-    def write(self, bone):
+    def export(self, bone):
         if bone is None:
             return None
         
@@ -233,7 +196,7 @@ class Vertex:
             current_data = data[i].split()
             current_layout_key = layout[i]
             if(current_layout_key == "Position"):
-                result.position = xmlhelper.StringListToFloatList(current_data)
+                result.position = xmlhelper.StringListToVector(current_data)
             elif(current_layout_key == "BlendWeights"):
                 result.blendweights = xmlhelper.StringListToIntList(current_data)
             elif(current_layout_key == "BlendIndices"):
@@ -391,15 +354,12 @@ class Drawable:
         self.drawable_models_low = []
         self.drawable_models_vlow = []
 
-    def read_xml(self, root, shaders=None):
+    def read_xml(self, root):
 
         if root is None:
             return
 
         self.name = xml_read_text(root.find("Name"), "Drawable", str)
-
-        if (root.find("DrawableModelsHigh") == None and root.find("DrawableModelsMedium") == None and root.find("DrawableModelsLow") == None):
-            return
 
         self.lod_dist_high = float(root.find("LodDistHigh").attrib["value"])
         self.lod_dist_med = float(root.find("LodDistMed").attrib["value"])
@@ -457,9 +417,9 @@ class Drawable:
             self.bounds = read_composite_info_children(bounds_node)
 
     @staticmethod
-    def from_xml(root, shaders=None):
+    def from_xml(root):
         drawable = Drawable()
-        drawable.read_xml(root, shaders)
+        drawable.read_xml(root)
         return drawable
 
     def get_bones(self):

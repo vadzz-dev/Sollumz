@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+from mathutils import Vector, Quaternion, Matrix
 
 def ReadInt(node):
     return int(node.attrib["value"])
@@ -23,6 +24,9 @@ def StringListToIntList(lst):
     for num in lst:
         result.append(int(num))
     return result
+
+def StringListToVector(lst):
+    return Vector((float(lst[0]), float(lst[1]), float(lst[2])))
 
 def WriteClass(object):
     print("WIP")

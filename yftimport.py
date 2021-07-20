@@ -9,181 +9,104 @@ import time
 import random 
 from .tools import cats as Cats
 from .resources.drawable import Drawable
+from .resources.fragment import Fragment
 from .tools.utils import build_bones_dict
-from .ybnimport import read_composite_info_children
-from .ycdimport import xml_read_value, xml_read_text
 from .ydrimport import create_drawable 
 
-class Archetype:
-    name = None
-    bounds = None
+def adjust_archetype(bound_obj, parent):
+    bound_obj.location -= parent.location
+    bound_obj.rotation_euler.x -= parent.rotation_euler.x
+    bound_obj.rotation_euler.y -= parent.rotation_euler.y
+    bound_obj.rotation_euler.z -= parent.rotation_euler.z
+    bound_obj.scale.x /= parent.scale.x
+    bound_obj.scale.y /= parent.scale.y
+    bound_obj.scale.z /= parent.scale.z
 
-    def __init__(self, xml):
-        if xml is None:
-            return
+def create_archetype(archetype, cobj=None):
 
-        self.name = xml_read_text(xml.find("Name"), "", str)
-        self.bounds = read_composite_info_children(xml.find('Bounds'))
-    
-    def adjust(self, bound_obj, parent):
-        bound_obj.location -= parent.location
-        bound_obj.rotation_euler.x -= parent.rotation_euler.x
-        bound_obj.rotation_euler.y -= parent.rotation_euler.y
-        bound_obj.rotation_euler.z -= parent.rotation_euler.z
-        bound_obj.scale.x /= parent.scale.x
-        bound_obj.scale.y /= parent.scale.y
-        bound_obj.scale.z /= parent.scale.z
+    if cobj is None:
+        cobj = bpy.data.objects.new(archetype.name + "_col", None)
 
-    def apply(self, cobj=None):
+    for bound in archetype.bounds:
+        bpy.context.scene.collection.objects.link(bound)
+        bound.parent = cobj
 
-        if cobj is None:
-            cobj = bpy.data.objects.new(self.name + "_col", None)
+    cobj.sollumtype = "Bound Composite"
 
-        for bound in self.bounds:
-            bpy.context.scene.collection.objects.link(bound)
-            bound.parent = cobj
+    return cobj
 
-        cobj.sollumtype = "Bound Composite"
+def create_archetype_clean(archetype):
 
-        return cobj
+    for bound in archetype.bounds:
+        bpy.context.scene.collection.objects.link(bound)
 
-    def apply_clean(self):
+    return archetype.bounds
 
-        for bound in self.bounds:
-            bpy.context.scene.collection.objects.link(bound)
+def create_group(group, bone=None, child=None):
 
-        return self.bounds
+    if bone is None:
+        return
 
-class Group:
+    bone.bone_properties.group.active = True
+    bone.bone_properties.group.mass = group.mass
+    bone.bone_properties.group.child = child
 
-    # both group and child can be the children of a group, similar but somehow different to how bones are structured
-    # Index - index of the first child of the group's children
-    # ParentIndex - index of parent group
-    # UnkByte4C - index of first group of the group's children
-    # UnkByte4F - the number of children
-    # UnkByte50 - the number of groups
-    # the rest of unk stuffs are to be researched, usually identical in general cases
+def create_child(child, filepath, child_obj=None):
 
-    def __init__(self, xml):
+    if child_obj is None:
+        child_obj = bpy.data.objects.new("Child", None)
+        child_obj.sollumtype = "Child"
+        bpy.context.scene.collection.objects.link(child_obj)
 
-        if xml is None:
-            return
+    if child.drawable is not None:
+        drawable = create_drawable(child.drawable, filepath, clean=True)
+        if drawable is not None:
+            drawable.parent = child_obj
 
-        self.name = xml_read_text(xml.find("Name"), "", str)
-        self.child_children_index = xml_read_value(xml.find("Index"), 0, int)
-        self.group_parent_index = xml_read_value(xml.find("ParentIndex"), 0, int)
-        self.group_children_index = xml_read_value(xml.find("UnkByte4C"), 0, int)
-        self.child_children_num = xml_read_value(xml.find("UnkByte4F"), 0, int)
-        self.group_children_num = xml_read_value(xml.find("UnkByte50"), 0, int)
-        self.mass = xml_read_value(xml.find("Mass"), 0, float)
+    return child_obj
 
-    def set_properties(self, bone=None, child=None):
+def create_fragment(fragment, filepath):
 
-        if bone is None:
-            return
+    fragment_node = bpy.data.objects.new(fragment.name, None)
+    fragment_node.sollumtype = "Fragment"
+    bpy.context.scene.collection.objects.link(fragment_node)
 
-        bone.bone_properties.group.active = True
-        bone.bone_properties.group.mass = self.mass
-        bone.bone_properties.group.child = child
+    drawable_node = create_drawable(fragment.drawable, filepath)
+    drawable_node.parent = fragment_node
 
-class Child:
+    bones_dict = build_bones_dict(drawable_node)
 
-    # bounds can be linked to a child, as we got the same number of children and bounds in one fragment 
+    if fragment.archetype is not None:
+        bounds = create_archetype_clean(fragment.archetype)
 
-    def __init__(self, xml, shaders):
+    if len(fragment.children):
+        children_node = bpy.data.objects.new(fragment.name + "_children", None)
+        children_node.parent = fragment_node
+        bpy.context.scene.collection.objects.link(children_node)
+        children_table = [None] * len(fragment.groups)
 
-        if xml is None:
-            return
-
-        self.group_index = xml_read_value(xml.find("GroupIndex"), 0, int)
-        self.tag = xml_read_value(xml.find("BoneTag"), 0, int)
-        self.drawable = Drawable.from_xml(xml.find('Drawable'), shaders)
-        self.bounds = []
-
-    def apply(self, child=None):
-
-        if child is None:
-            child = bpy.data.objects.new("child", None)
-            child.sollumtype = "Children"
+        for i, group in enumerate(fragment.groups):
+            child = bpy.data.objects.new(group.name, None)
+            child.sollumtype = "Child"
             bpy.context.scene.collection.objects.link(child)
+            children_table[i] = child
+            create_group(group, drawable_node.data.bones[group.name], child)
 
-        if self.drawable is not None:
-            drawable = create_drawable(self.drawable, clean=True)
-            if drawable is not None:
-                drawable.parent = child
+        for i, child in enumerate(fragment.children):
+            child_node = create_child(child, filepath, children_table[child.group_index])
+            child_node.parent = children_node
+            bounds[i].parent = child_node
 
-        return child
+            children_table[child.group_index].matrix_local = drawable_node.data.bones[bones_dict[child.tag]].matrix_local
+            adjust_archetype(bounds[i], child_node)
 
-class Fragment:
+    return fragment_node
 
-    def __init__(self, xml):
-
-        if xml is None:
-            return
-
-        drawable_node = xml.find('Drawable')
-        physics_node = xml.find('Physics')
-
-        self.name = xml_read_text(xml.find("Name"), "Fragment", str)
-        self.drawable = Drawable.from_xml(drawable_node)
-        self.archetype = None
-        self.groups = []
-        self.children = []
-
-        if physics_node is not None:
-            lod1_node = physics_node.find('LOD1')
-            self.archetype = Archetype(lod1_node.find('Archetype'))
-
-            for group_node in lod1_node.find("Groups"):
-                group = Group(group_node)
-                self.groups.append(group)
-
-            shaders = self.drawable.shader_group.shaders
-            for children_node in lod1_node.find("Children"):
-                child = Child(children_node, shaders)
-                self.children.append(child)
-
-    def apply(self, filepath):
-
-        fragment_node = bpy.data.objects.new(self.name, None)
-        fragment_node.sollumtype = "Fragment"
-        bpy.context.scene.collection.objects.link(fragment_node)
-
-        drawable_node = create_drawable(self.drawable, filepath)
-        drawable_node.parent = fragment_node
-
-        bones_dict = build_bones_dict(drawable_node)
-
-        if self.archetype is not None:
-            bounds = self.archetype.apply_clean()
-
-        if len(self.children):
-            children_node = bpy.data.objects.new(self.name + "_children", None)
-            children_node.parent = fragment_node
-            bpy.context.scene.collection.objects.link(children_node)
-            children_table = [None] * len(self.groups)
-
-            for i, group in enumerate(self.groups):
-                child = bpy.data.objects.new(group.name, None)
-                child.sollumtype = "Child"
-                bpy.context.scene.collection.objects.link(child)
-                children_table[i] = child
-                group.set_properties(drawable_node.data.bones[group.name], child)
-
-            for i, child in enumerate(self.children):
-                child_node = child.apply(children_table[child.group_index])
-                child_node.parent = children_node
-                bounds[i].parent = child_node
-
-                children_table[child.group_index].matrix_local = drawable_node.data.bones[bones_dict[child.tag]].matrix_local
-                self.archetype.adjust(bounds[i], child_node)
-
-        return fragment_node
-
-def read_yft_xml(self, root):
+def read_yft_xml(root):
 
     # fragment_name = root.find("Name").text
-    fragment = Fragment(root)
+    fragment = Fragment()
+    fragment.read_xml(root)
 
     return fragment
 
@@ -207,8 +130,8 @@ class ImportYFT(Operator, ImportHelper):
         tree = ET.parse(self.filepath)
         root = tree.getroot()
 
-        fragment = read_yft_xml(self, root)
-        fragment.apply(self.filepath)
+        fragment = read_yft_xml(root)
+        create_fragment(fragment, self.filepath)
 
         finished = time.time()
         

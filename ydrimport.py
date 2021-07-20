@@ -53,7 +53,7 @@ def create_geometry(geometry, bones, name):
 
     vertices_data = geometry.vertex_buffer.vertices
     for v in vertices_data:
-        vertices.append(Vector((v.position[0], v.position[1], v.position[2])))
+        vertices.append(v.position)
         # normals.append(v.normal)
 
         if(v.texcoord0 != None):
@@ -163,13 +163,13 @@ def create_geometry(geometry, bones, name):
 
     return obj
 
-def create_drawable_model(drawable_model, materials, bones, name):
+def create_drawable_model(drawable_model, materials, bones, name, key):
     
     objs = []
     for mesh in drawable_model.geometries:
         obj = create_geometry(mesh, bones, name)
         obj.sollumtype = "Geometry"
-        # obj.level_of_detail = drawable_model.key
+        obj.level_of_detail = key
         obj.mask = drawable_model.render_mask
         if materials is not None:
             obj.data.materials.append(materials[mesh.shader_index])
@@ -178,6 +178,42 @@ def create_drawable_model(drawable_model, materials, bones, name):
         objs.append(obj)
 
     return objs
+
+def create_bone(bone, armature):
+
+    if armature is None:
+        return None
+
+    # bpy.context.view_layer.objects.active = armature
+    edit_bone = armature.data.edit_bones.new(bone.name)
+    if bone.parent_index != -1:
+        edit_bone.parent = armature.data.edit_bones[bone.parent_index]
+
+    # https://github.com/LendoK/Blender_GTA_V_model_importer/blob/master/importer.py
+    mat_rot = bone.rotation.to_matrix().to_4x4()
+    mat_loc = Matrix.Translation(bone.translation)
+    mat_sca = Matrix.Scale(1, 4, bone.scale)
+
+    edit_bone.head = (0,0,0)
+    edit_bone.tail = (0,0.05,0)
+    edit_bone.matrix = mat_loc @ mat_rot @ mat_sca
+    if edit_bone.parent != None:
+        edit_bone.matrix = edit_bone.parent.matrix @ edit_bone.matrix
+
+    return bone.name
+
+def set_bone_properties(bone, armature):
+
+    bl_bone = armature.pose.bones[bone.name].bone
+    bl_bone.bone_properties.tag = bone.tag
+    # LimitRotation and Unk0 have their special meanings, can be deduced if needed when exporting
+    flags_restricted = set(["LimitRotation", "Unk0"])
+    for _flag in bone.flags:
+        if (_flag in flags_restricted):
+            continue
+
+        flag = bl_bone.bone_properties.flags.add()
+        flag.name = _flag
 
 def create_skeleton(skeleton, armature):
     
@@ -189,12 +225,12 @@ def create_skeleton(skeleton, armature):
     bpy.ops.object.mode_set(mode='EDIT')
 
     for bone in bones:
-        bone.create(armature)
+        create_bone(bone, armature)
 
     bpy.ops.object.mode_set(mode='OBJECT')
 
     for bone in bones:
-        bone.set_properties(armature)
+        set_bone_properties(bone, armature)
 
     return armature
 
@@ -238,19 +274,19 @@ def create_drawable(drawable, filepath=None, armature=None, bones_override=None,
             materials.append(create_material(shader, texture_dictionary, filepath))
 
     for dm in drawable.drawable_models_high:
-        model = create_drawable_model(dm, materials, bones, drawable.name)
+        model = create_drawable_model(dm, materials, bones, drawable.name, "High")
         DrawableModel.set_parent(model, armature)
 
     for dm in drawable.drawable_models_med:
-        model = create_drawable_model(dm, materials, bones, drawable.name)
+        model = create_drawable_model(dm, materials, bones, drawable.name, "Medium")
         DrawableModel.set_parent(model, armature)
 
     for dm in drawable.drawable_models_low:
-        model = create_drawable_model(dm, materials, bones, drawable.name)
+        model = create_drawable_model(dm, materials, bones, drawable.name, "Low")
         DrawableModel.set_parent(model, armature)
 
     for dm in drawable.drawable_models_vlow:
-        model = create_drawable_model(dm, materials, bones, drawable.name)
+        model = create_drawable_model(dm, materials, bones, drawable.name, "Very Low")
         DrawableModel.set_parent(model, armature)
 
     if len(drawable.bounds) > 0:
