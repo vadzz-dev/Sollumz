@@ -9,7 +9,7 @@ import time
 import random 
 from .tools import cats as Cats
 from .resources.drawable import Drawable
-from .resources.utils import build_bones_dict
+from .tools.utils import build_bones_dict
 from .ybnimport import read_composite_info_children
 from .ycdimport import xml_read_value, xml_read_text
 from .ydrimport import create_drawable 
@@ -90,14 +90,14 @@ class Child:
 
     # bounds can be linked to a child, as we got the same number of children and bounds in one fragment 
 
-    def __init__(self, xml, filepath, shaders):
+    def __init__(self, xml, shaders):
 
         if xml is None:
             return
 
         self.group_index = xml_read_value(xml.find("GroupIndex"), 0, int)
         self.tag = xml_read_value(xml.find("BoneTag"), 0, int)
-        self.drawable = Drawable.from_xml(xml.find('Drawable'), filepath, shaders)
+        self.drawable = Drawable.from_xml(xml.find('Drawable'), shaders)
         self.bounds = []
 
     def apply(self, child=None):
@@ -116,7 +116,7 @@ class Child:
 
 class Fragment:
 
-    def __init__(self, xml, filepath):
+    def __init__(self, xml):
 
         if xml is None:
             return
@@ -125,7 +125,7 @@ class Fragment:
         physics_node = xml.find('Physics')
 
         self.name = xml_read_text(xml.find("Name"), "Fragment", str)
-        self.drawable = Drawable.from_xml(drawable_node, filepath)
+        self.drawable = Drawable.from_xml(drawable_node)
         self.archetype = None
         self.groups = []
         self.children = []
@@ -138,18 +138,18 @@ class Fragment:
                 group = Group(group_node)
                 self.groups.append(group)
 
-            shaders = self.drawable.shaders
+            shaders = self.drawable.shader_group.shaders
             for children_node in lod1_node.find("Children"):
-                child = Child(children_node, filepath, shaders)
+                child = Child(children_node, shaders)
                 self.children.append(child)
 
-    def apply(self):
+    def apply(self, filepath):
 
         fragment_node = bpy.data.objects.new(self.name, None)
         fragment_node.sollumtype = "Fragment"
         bpy.context.scene.collection.objects.link(fragment_node)
 
-        drawable_node = create_drawable(self.drawable)
+        drawable_node = create_drawable(self.drawable, filepath)
         drawable_node.parent = fragment_node
 
         bones_dict = build_bones_dict(drawable_node)
@@ -183,7 +183,7 @@ class Fragment:
 def read_yft_xml(self, root):
 
     # fragment_name = root.find("Name").text
-    fragment = Fragment(root, self.filepath)
+    fragment = Fragment(root)
 
     return fragment
 
@@ -208,7 +208,7 @@ class ImportYFT(Operator, ImportHelper):
         root = tree.getroot()
 
         fragment = read_yft_xml(self, root)
-        fragment.apply()
+        fragment.apply(self.filepath)
 
         finished = time.time()
         

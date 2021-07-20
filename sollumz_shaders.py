@@ -220,10 +220,30 @@ def create_shader(shadername, shadermanager):
 
     return mat
 
-def assign_texture(node, texture):
+def assign_texture(node, param, texture, filepath):
+
+    if filepath is not None:
+        filename = os.path.basename(filepath)[:-8]
+        texture_dir = os.path.dirname(os.path.abspath(filepath)) + "\\" + filename + "\\"
+        if(isinstance(node, bpy.types.ShaderNodeTexImage)):
+            if texture is not None:
+                texture_name = texture.filename
+            else:
+                texture_name = param.texture_name + ".dds"
+
+            texture_path = texture_dir + texture_name
+            node.texture_name = texture_name.rstrip(".dds")
+            if(os.path.isfile(texture_dir + texture_name)):
+                img = bpy.data.images.load(texture_path, check_existing=True)
+                node.image = img 
+
+            #deal with special situations
+            if(param.name == "BumpSampler" and hasattr(node.image, 'colorspace_settings')):
+                node.image.colorspace_settings.name = 'Non-Color'
+
     if texture is None:
         return
-    
+
     node.embedded = True
     if len(texture.format) > 0:
         node.format_type = texture.format.split("_")[1]
@@ -283,7 +303,7 @@ def assign_texture(node, texture):
     if("UNK24" in uf):
         node.unk24 = True
 
-def create_material(shader, texture_dictionary=None):
+def create_material(shader, texture_dictionary=None, filepath=None):
     
     parameters = shader.parameters
     filename = shader.filename
@@ -293,7 +313,7 @@ def create_material(shader, texture_dictionary=None):
     else:
         shadern = "default.sps"
 
-    dict = None
+    dict = {}
     if texture_dictionary is not None:
         dict = texture_dictionary.to_dict()
 
@@ -304,8 +324,7 @@ def create_material(shader, texture_dictionary=None):
     for param in parameters:
         if(param.type == "Texture"):
             node = create_image_node(node_tree, param)
-            if texture_dictionary is not None:
-                assign_texture(node, dict.get(param.texture_name, None))
+            assign_texture(node, param, dict.get(param.texture_name, None), filepath)
         elif(param.type == "Vector"):
             create_vector_nodes(node_tree, param)
 

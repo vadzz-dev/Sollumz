@@ -79,7 +79,10 @@ class ShaderValueParameter(ShaderParameter):
 
     def read_xml(self, root):
         super().read_xml(root)
-        self.value = xmlhelper.ReadQuaternion(root)
+        if self.type == "Array":
+            self.value = xmlhelper.ReadQuaternion(root.find("Value"))
+        else:
+            self.value = xmlhelper.ReadQuaternion(root)
 
 class Shader:
 

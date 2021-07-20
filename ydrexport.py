@@ -434,7 +434,7 @@ def write_imageparam_node(node):
     
     #if(node.image != None):
         #tname = os.path.basename(node.image.filepath)
-    tname = node.texture_name[:-4] #delete file extension
+    tname = node.texture_name.split(".")[0] #delete file extension
     
     i_node = Element("Item")
     i_node.set("name", iname)

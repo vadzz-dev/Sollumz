@@ -391,7 +391,7 @@ class Drawable:
         self.drawable_models_low = []
         self.drawable_models_vlow = []
 
-    def read_xml(self, root, filepath, shaders=None):
+    def read_xml(self, root, shaders=None):
 
         if root is None:
             return
@@ -457,9 +457,9 @@ class Drawable:
             self.bounds = read_composite_info_children(bounds_node)
 
     @staticmethod
-    def from_xml(root, filepath, shaders=None):
+    def from_xml(root, shaders=None):
         drawable = Drawable()
-        drawable.read_xml(root, filepath, shaders)
+        drawable.read_xml(root, shaders)
         return drawable
 
     def get_bones(self):
@@ -489,7 +489,7 @@ class DrawableDictionary:
 
         self.drawables = []
 
-    def read_xml(self, root, filepath):
+    def read_xml(self, root):
 
         if root is None:
             return
@@ -498,11 +498,11 @@ class DrawableDictionary:
             if item is None:
                 continue
 
-            drawable = Drawable.from_xml(item, filepath)
+            drawable = Drawable.from_xml(item)
             self.drawables.append(drawable)
 
     @staticmethod
-    def from_xml(root, filepath):
+    def from_xml(root):
         drawable_dict = DrawableDictionary()
-        drawable_dict.read_xml(root, filepath)
+        drawable_dict.read_xml(root)
         return drawable_dict
