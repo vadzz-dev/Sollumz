@@ -66,7 +66,7 @@ class Bone:
         return bone
 
     def write_xml(self):
-        bone_node = Element("Bone")
+        bone_node = Element("Item")
 
         name_node = Element("Name")
         name_node.text = self.name
