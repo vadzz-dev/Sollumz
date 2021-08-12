@@ -97,7 +97,7 @@ class Shader:
             self.name = name.text
         
         filename = root.find("FileName")
-        if (filename is not None):
+        if (filename is not None and hasattr(filename, 'text')):
             self.filename = filename.text
 
         for node in root.find("Parameters"):
@@ -133,6 +133,45 @@ class ShaderGroup:
             s.read_xml(node)
             self.shaders.append(s)
 
+class InternalShader:
+
+    def __init__(self):
+        self.name = ""
+        self.filename = []
+        self.render_bucket = 0
+        self.layout = {}
+        self.parameters = []
+
+    def read_xml(self, root):
+        name = root.find("Name")
+        if (name is not None):
+            self.name = name.text
+
+        filenames = root.find("FileName")
+        for fn in filenames:
+            self.filename.append(fn.text)
+
+        self.renderbucket = xmlhelper.StringListToIntList(root.find("RenderBucket").text.split())
+
+        layouts = root.find("Layout")
+        idx = 0
+        for layout in layouts:
+            lay = []
+            for semantic in layout:
+                lay.append(semantic.tag)
+            self.layout["0x" + str(idx)] = lay   
+            idx += 1
+
+        for node in root.find("Parameters"):
+            if(node.attrib["type"] == "Texture"):
+                p = ShaderTextureParameter()
+                p.read_xml(node)
+                self.parameters.append(p)
+            else:
+                p = ShaderValueParameter()
+                p.read_xml(node)
+                self.parameters.append(p)
+
 class ShaderManager:
 
     def __init__(self):
@@ -143,6 +182,6 @@ class ShaderManager:
     def load_shaders(self):
         tree = ET.parse(self.shaderxml)
         for node in tree.getroot():
-            s = Shader()
+            s = InternalShader()
             s.read_xml(node)
             self.shaders[s.name] = s

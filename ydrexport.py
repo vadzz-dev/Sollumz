@@ -14,6 +14,7 @@ import ntpath
 from datetime import datetime 
 from . import shaderoperators as Shader
 from .tools import jenkhash as JenkHash
+from .resources.drawable import Drawable, DrawableDictionary, DrawableModel, Skeleton, Bone, Vertex, VertexBuffer, IndexBuffer, Geometry
 
 def get_obj_children(obj):
     children = [] 
@@ -74,11 +75,6 @@ def vector_tostring(vector):
 def meshloopcolor_tostring(color):
     try:
         string = " ".join(str(round(color[i] * 255)) for i in range(4))
-        # string = ""
-        # string += str(round(color[0] * 255)) + " "
-        # string += str(round(color[1] * 255)) + " "
-        # string += str(round(color[2] * 255)) + " "
-        # string += str(round(color[3] * 255))
         return string 
     except:
         return None
@@ -91,21 +87,15 @@ def process_uv(uv):
 
 def get_vertex_string(obj, vlayout, bones, depsgraph):
     mesh = bpy.data.meshes.new_from_object(obj, preserve_all_data_layers=True, depsgraph=depsgraph)
-    # mesh = obj.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
-    # mesh = obj.data
 
     allstrings = deque()
     allstrings.append("\n") #makes xml a little prettier
     
     vertamount = len(mesh.vertices)
-    vertices = [None] * vertamount
-    normals = [None] * vertamount
-    clr = [None] * vertamount
-    clr1 = [None] * vertamount
     texcoords = {}
-    tangents = [None] * vertamount
-    blendw = [None] * vertamount
-    blendi = [None] * vertamount
+
+    vb = VertexBuffer()
+    vb.vertices = [None] * vertamount
 
     for i in range(6):
         texcoords[i] = [None] * vertamount       
@@ -135,39 +125,37 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
         else:
             clr1_layer = mesh.vertex_colors.new()
 
-    for uv_layer_id in range(len(mesh.uv_layers)):
-        uv_layer = mesh.uv_layers[uv_layer_id].data
-        for poly in mesh.polygons:
-            for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
-                vi = mesh.loops[loop_index].vertex_index
+    for poly in mesh.polygons:
+        for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
+            vi = mesh.loops[loop_index].vertex_index
+            vertex = Vertex()
+            vertex.position = mesh.vertices[vi].co
+            vertex.normal = mesh.loops[loop_index].normal
+            vertex.colors0 = clr0_layer.data[loop_index].color
+            vertex.colors1 = clr1_layer.data[loop_index].color
+            for uv_layer_id in range(len(mesh.uv_layers)):
+                uv_layer = mesh.uv_layers[uv_layer_id].data
                 uv = process_uv(uv_layer[loop_index].uv)
                 u = uv[0]
                 v = uv[1]
                 fixed_uv = Vector((u, v))
-                texcoords[uv_layer_id][vi] = fixed_uv
+                # texcoords[uv_layer_id][vi] = fixed_uv
+                layer = "texcoord" + str(uv_layer_id)
+                setattr(vertex, layer, fixed_uv)
 
-    for poly in mesh.polygons:
-        for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
-            vi = mesh.loops[loop_index].vertex_index
-            vertices[vi] = mesh.vertices[vi].co
-            # normals[vi] = mesh.vertices[vi].normal
-            normals[vi] = mesh.loops[loop_index].normal
-            clr[vi] = clr0_layer.data[loop_index].color
-            clr1[vi] = clr1_layer.data[loop_index].color
-            tangents[vi] = mesh.loops[loop_index].tangent.to_4d()
-            # https://github.com/labnation/MonoGame/blob/master/MonoGame.Framework.Content.Pipeline/Graphics/MeshHelper.cs#L298
+            vertex.tangent = mesh.loops[loop_index].tangent.to_4d()
             # bitangent = bitangent_sign * cross(normal, tangent)
-            tangents[vi].w = mesh.loops[loop_index].bitangent_sign
+            vertex.tangent.w = mesh.loops[loop_index].bitangent_sign
             #FIXME: one vert can only be influenced by 4 weights at most
             vertex_group_elements = mesh.vertices[vi].groups
 
             if len(vertex_group_elements) > 0:
-                blendw_list = []
-                blendi_list = []
+                vertex.blendweights = [0] * 4
+                vertex.blendindices = [0] * 4
                 valid_weights = 0
                 total_weights = 0
                 max_weights = 0
-                max_weights_position = -1
+                max_weights_index = -1
 
                 for element in vertex_group_elements:
                     if element.group >= len(vertex_groups):
@@ -178,62 +166,34 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
                     # 1/255 = 0.0039 the minimal weight for one vertex group
                     weight = round(element.weight * 255)
                     if (vertex_group.lock_weight == False and bone_index != -1 and weight > 0 and valid_weights < 4):
-                        blendw_list.append(weight)
-                        blendi_list.append(bone_index)
+                        vertex.blendweights[valid_weights] = weight
+                        vertex.blendindices[valid_weights] = bone_index
                         if (max_weights < weight):
-                            max_weights_position = valid_weights
+                            max_weights_index = valid_weights
                             max_weights = weight
 
                         valid_weights += 1
                         total_weights += weight
 
-                #fill the positions where there are no weights
-                if valid_weights < 4:
-                    for i in range(4 - valid_weights):
-                        blendw_list.append(0)
-                        blendi_list.append(0)
-
                 # weights verification stuff
                 # wtf rockstar
                 # why do you even use int for weights
-                if valid_weights > 0 and max_weights_position != -1:
-                    blendw_list[max_weights_position] = blendw_list[max_weights_position] + (255 - total_weights)
-
-                blendw[vi] = ' '.join(str(i) for i in blendw_list)
-                blendi[vi] = ' '.join(str(i) for i in blendi_list)
+                if valid_weights > 0 and max_weights_index != -1:
+                    vertex.blendweights[max_weights_index] = vertex.blendweights[max_weights_index] + (255 - total_weights)
             else:
-                blendw[vi] = "0 0 255 0"
-                blendi[vi] = "0 0 0 0"
+                vertex.blendweights = [0, 0, 255, 0]
+                vertex.blendindices = [0] * 4
             
-    for i in range(len(vertices)):
-        tlist = deque()
-        tlist.append(vector_tostring(vertices[i])) 
-        tlist.append(vector_tostring(normals[i])) 
-        tlist.append(meshloopcolor_tostring(clr[i])) 
-        tlist.append(meshloopcolor_tostring(clr1[i]))
-        tlist.append(vector_tostring(texcoords[0][i])) 
-        tlist.append(vector_tostring(texcoords[1][i]))
-        tlist.append(vector_tostring(texcoords[2][i]))
-        tlist.append(vector_tostring(texcoords[3][i]))
-        tlist.append(vector_tostring(texcoords[4][i]))
-        tlist.append(vector_tostring(texcoords[5][i]))
-        tlist.append(vector_tostring(tangents[i]))
-        tlist.append(blendw[i])
-        tlist.append(blendi[i])
-        
-        layoutlist = order_vertex_list(tlist, vlayout)
+            vb.vertices[vi] = vertex
 
+    for vertex in vb.vertices:
         vstring = deque(" " * 5)
-        for l in layoutlist:
-            vstring.append(l)
-            vstring.append(" " * 3)
-
-        vstring.append("\n")
+        vstring.append(vertex.to_string(vlayout))
         allstrings.append("".join(vstring))
     
-    vertex_string = "".join(allstrings)
+    vb.data = "\n".join(allstrings)
 
-    return vertex_string
+    return vb
 
 def get_index_string(mesh):
     
@@ -271,36 +231,24 @@ def get_vertex_layout(shader):
 
 def write_model_node(objs, materials, bones):
     
-    m_node = Element("Item")
-    rm_node = Element("RenderMask")
-    rm_node.set("value", str(objs[0].mask))
-    flags_node = Element("Flags")
-    flags_node.set("value", "1")
-    has_skin_node = Element("HasSkin")
+    m_node = DrawableModel()
+    m_node.render_mask = objs[0].mask
+
     if len(objs[0].vertex_groups) > 0:
-        has_skin_node.set("value", "1")
+        m_node.has_skin = True
     else:
-        has_skin_node.set("value", "0")
+        m_node.has_skin = False
 
-    bone_index_node = Element("BoneIndex")
-    bone_index_node.set("value", "0")
-
-    unk1_node = Element("Unknown1")
     if bones != None:
-        unk1_node.set("value", str(len(bones)))
-    else:
-        unk1_node.set("value", "0")
-
-    geo_node = Element("Geometries")
+        m_node.unknown_1 = len(bones)
 
     # depsgraph stuff, for the purpose of auto-applying modifiers on exporting
     depsgraph = bpy.context.evaluated_depsgraph_get()
     for obj in objs:
         obj_eval = obj.evaluated_get(depsgraph)
         model = bpy.data.meshes.new_from_object(obj_eval, preserve_all_data_layers=True, depsgraph=depsgraph)
-        #model = obj.data
         
-        i_node = Element("Item")
+        i_node = Geometry()
         
         shader_index = 0
         shader = None
@@ -308,34 +256,15 @@ def write_model_node(objs, materials, bones):
             if(model.materials[0] == materials[idx]):
                 shader_index = idx
                 shader = materials[idx] 
-        shd_index = Element("ShaderIndex")
-        shd_index.set("value", str(shader_index))
-        
-        bound_box_min = obj.bound_box[0] 
-        bound_box_max = obj.bound_box[6]
-        
-        bbmin_node = Element("BoundingBoxMin")
-        bbmin_node.set("x", str(bound_box_min[0]))
-        bbmin_node.set("y", str(bound_box_min[1]))
-        bbmin_node.set("z", str(bound_box_min[2]))
-        bbmin_node.set("w", "0")
-        bbmax_node = Element("BoundingBoxMax")
-        bbmax_node.set("x", str(bound_box_max[0]))
-        bbmax_node.set("y", str(bound_box_max[1]))  
-        bbmax_node.set("z", str(bound_box_max[2]))
-        bbmax_node.set("w", "0")
 
-        boneids_node = Element("BoneIDs")
+        i_node.shader_index = shader_index
+        i_node.bound_box_min = obj.bound_box[0] 
+        i_node.bound_box_max = obj.bound_box[6]
+        
         if bones != None:
-            boneids_node.text = ", ".join(str(i) for i in range(len(bones)))
+            for i in range(len(bones)):
+                i_node.bone_ids.append(i)
 
-        vb_node = Element("VertexBuffer")
-        vbflags_node = Element("Flags")
-        vbflags_node.set("value", "0")
-        
-        vblayout_node = Element("Layout")
-        vblayout_node.set("type", "GTAV1")
-        
         if(shader.sollumtype != "GTA"):
             print("Error Material Type Is Not GTA!!")
             return m_node
@@ -343,42 +272,17 @@ def write_model_node(objs, materials, bones):
         print('Processing shader', shader_index, shader.name)
         vlayout = get_vertex_layout(shader.name)
 
-        vdata_node = Element("Data")
-        vertex_str = get_vertex_string(obj_eval, vlayout, bones, depsgraph)
-        vdata_node.text = vertex_str
-        
-        ib_node = Element("IndexBuffer")
-        idata_node = Element("Data")
-        idata_node.text = get_index_string(model)
-
-        ib_node.append(idata_node)
-        
+        vb = get_vertex_string(obj_eval, vlayout, bones, depsgraph)
         for p in vlayout:
-            p_node = Element(p)
-            vblayout_node.append(p_node)
-        
-        vb_node.append(vbflags_node)
-        vb_node.append(vblayout_node)
-        vb_node.append(vdata_node)
-        
-        i_node.append(shd_index)
-        i_node.append(bbmin_node)
-        i_node.append(bbmax_node)
-        i_node.append(boneids_node)
-        i_node.append(vb_node)
-        i_node.append(ib_node)
-        
-        geo_node.append(i_node)
-    
-    m_node.append(rm_node)
-    m_node.append(flags_node)
-    m_node.append(has_skin_node)
-    m_node.append(bone_index_node)
-    m_node.append(unk1_node)
-    m_node.append(geo_node)
-    
-    #print(prettify(m_node))
-    
+            vb.layout.append(p)
+        i_node.vertex_buffer = vb
+
+        ib = IndexBuffer()
+        ib.data = get_index_string(model)
+        i_node.index_buffer = ib
+
+        m_node.geometries.append(i_node)
+
     return m_node
     
 def write_drawablemodels_node(models, materials, bones):
@@ -401,13 +305,13 @@ def write_drawablemodels_node(models, materials, bones):
     
     if(len(high_models) != 0):
         drawablemodels_high_node = Element("DrawableModelsHigh")
-        drawablemodels_high_node.append(write_model_node(high_models, materials, bones))
+        drawablemodels_high_node.append(write_model_node(high_models, materials, bones).write_xml())
     if(len(med_models) != 0):
         drawablemodels_med_node = Element("DrawableModelsMedium")
-        drawablemodels_med_node.append(write_model_node(med_models, materials, bones))
+        drawablemodels_med_node.append(write_model_node(med_models, materials, bones).write_xml())
     if(len(low_models) != 0):
         drawablemodels_low_node = Element("DrawableModelsLow")
-        drawablemodels_low_node.append(write_model_node(low_models, materials, bones))
+        drawablemodels_low_node.append(write_model_node(low_models, materials, bones).write_xml())
     
     dm_nodes = []
     if(drawablemodels_high_node != None):
@@ -716,29 +620,7 @@ def write_skeleton_node(obj):
     if len(bones) == 0:
         return None
 
-    skeleton_node = Element("Skeleton")
-
-    #TODO: the current implementation works but IMHO there should be something more meaningful than "0"
-    #as long as it doesn't break in game
-    unk1c_node = Element("Unknown1C")
-    unk1c_node.set("value", "16777216")
-
-    unk50_node = Element("Unknown50")
-    unk50_node.set("value", "0")
-
-    unk54_node = Element("Unknown54")
-    unk54_node.set("value", "0")
-
-    unk58_node = Element("Unknown58")
-    unk58_node.set("value", "0")
-
-    bones_node = Element("Bones")
-
-    skeleton_node.append(unk1c_node)
-    skeleton_node.append(unk50_node)
-    skeleton_node.append(unk54_node)
-    skeleton_node.append(unk58_node)
-    skeleton_node.append(bones_node)
+    skeleton_node = Skeleton()
 
     ind = 0
     for pbone in bones:
@@ -749,27 +631,13 @@ def write_skeleton_node(obj):
     for pbone in bones:
         bone = pbone.bone
 
-        bone_node = Element("Item")
-
-        bone_node_name = Element("Name")
-        bone_node_name.text = bone.name
-        bone_node.append(bone_node_name)
-
-        bone_node_tag = Element("Tag")
-
-        bone_node_tag.set("value", str(bone.bone_properties.tag))
-
-        bone_node.append(bone_node_tag)
-
-        bone_node_tag = Element("Index")
-        bone_node_tag.set("value", str(bone["BONE_INDEX"]))
-        bone_node.append(bone_node_tag)
-
-        bone_node_parent_index = Element("ParentIndex")
-        bone_node_sibling_index = Element("SiblingIndex")
+        bone_node = Bone()
+        bone_node.name = bone.name
+        bone_node.tag = bone.bone_properties.tag
+        bone_node.index = bone["BONE_INDEX"]
 
         if bone.parent != None:
-            bone_node_parent_index.set("value", str(bone.parent["BONE_INDEX"]))
+            bone_node.parent_index = bone.parent["BONE_INDEX"]
             children = bone.parent.children
             sibling = -1
             if len(children) > 1:
@@ -778,24 +646,13 @@ def write_skeleton_node(obj):
                         sibling = children[i + 1]["BONE_INDEX"]
                         break
 
-            bone_node_sibling_index.set("value", str(sibling))
-        else:
-            bone_node_parent_index.set("value", "-1")
-            bone_node_sibling_index.set("value", "-1")
+            bone_node.sibling_index = sibling
 
-        bone_node.append(bone_node_parent_index)
-        bone_node.append(bone_node_sibling_index)
-
-        bone_node_flags = Element("Flags")
-        flags = []
         for flag in bone.bone_properties.flags:
-            flags.append(flag.name)
+            bone_node.flags.append(flag.name)
 
         if len(bone.children) > 0:
-            flags.append("Unk0")
-
-        bone_node_flags.text = ", ".join(flags)
-        bone_node.append(bone_node_flags)
+            bone_node.flags.append("Unk0")
 
         mat = bone.matrix_local
         if (bone.parent != None):
@@ -803,37 +660,11 @@ def write_skeleton_node(obj):
 
         mat_decomposed = mat.decompose()
 
-        trans = mat_decomposed[0]
-        bone_node_translation = Element("Translation")
-        bone_node_translation.set("x", str(trans[0]))
-        bone_node_translation.set("y", str(trans[1]))
-        bone_node_translation.set("z", str(trans[2]))
-        bone_node.append(bone_node_translation)
+        bone_node.translation = mat_decomposed[0]
+        bone_node.rotation = mat_decomposed[1]
+        bone_node.scale = mat_decomposed[2]
 
-        #quat = bone.rotation_euler.to_quaternion()
-        quat = mat_decomposed[1]
-        bone_node_rotation = Element("Rotation")
-        bone_node_rotation.set("x", str(quat[1]))
-        bone_node_rotation.set("y", str(quat[2]))
-        bone_node_rotation.set("z", str(quat[3]))
-        bone_node_rotation.set("w", str(quat[0]))
-        bone_node.append(bone_node_rotation)
-
-        scale = mat_decomposed[2]
-        bone_node_scale = Element("Scale")
-        bone_node_scale.set("x", str(scale[0]))
-        bone_node_scale.set("y", str(scale[1]))
-        bone_node_scale.set("z", str(scale[2]))
-        bone_node.append(bone_node_scale)
-
-        bone_node_transform_unk = Element("TransformUnk")
-        bone_node_transform_unk.set("x", "0")
-        bone_node_transform_unk.set("y", "4")
-        bone_node_transform_unk.set("z", "-3")
-        bone_node_transform_unk.set("w", "0")
-        bone_node.append(bone_node_transform_unk)
-
-        bones_node.append(bone_node)
+        skeleton_node.bones.append(bone_node)
 
     return skeleton_node
 
@@ -1013,7 +844,11 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
     Unk9a_node.set("value", "0")
 
     shadergroup_node = write_shader_group_node(materials, filepath)
-    skeleton_node = write_skeleton_node(obj)
+    skeleton = write_skeleton_node(obj)
+    skeleton_node = None
+    if skeleton is not None:
+        skeleton_node = skeleton.write_xml()
+        
     drawablemodels_node = write_drawablemodels_node(geometrys, materials, bones)
     bounds_node = None
     

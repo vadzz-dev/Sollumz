@@ -1,12 +1,13 @@
 import os
 import xml.etree.ElementTree as ET
 import time
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from mathutils import Vector, Quaternion, Matrix
 from ..ycdimport import xml_read_text
 from ..ybnimport import read_composite_info_children
 from ..tools import xmlhelper
 from .shader import ShaderGroup
+from collections import deque
 
 class Bone:
 
@@ -14,13 +15,13 @@ class Bone:
         self.name = ""
         self.tag = 0
         self.index = 0
-        self.parent_index = 0
-        self.sibling_index = 0 
+        self.parent_index = -1
+        self.sibling_index = -1
         self.flags = []
         self.translation = Vector()
         self.rotation = Quaternion()
         self.scale = Vector()
-        self.transform_unk = Quaternion()
+        self.transform_unk = Quaternion((0, 4, -3, 0))
 
     def read_xml(self, root):
 
@@ -64,12 +65,71 @@ class Bone:
         bone.read_xml(root)
         return bone
 
+    def write_xml(self):
+        bone_node = Element("Bone")
+
+        name_node = Element("Name")
+        name_node.text = self.name
+
+        tag_node = Element("Tag")
+        tag_node.set("value", str(self.tag))
+
+        index_node = Element("Index")
+        index_node.set("value", str(self.index))
+
+        parent_index_node = Element("ParentIndex")
+        parent_index_node.set("value", str(self.parent_index))
+
+        sibling_index_node = Element("SiblingIndex")
+        sibling_index_node.set("value", str(self.sibling_index))
+
+        flags_node = Element("Flags")
+        flags_node.text = ", ".join(self.flags)
+
+        translation_node = Element("Translation")
+        translation_node.set("x", str(self.translation.x))
+        translation_node.set("y", str(self.translation.y))
+        translation_node.set("z", str(self.translation.z))
+
+        rotation_node = Element("Rotation")
+        rotation_node.set("w", str(self.rotation.w))
+        rotation_node.set("x", str(self.rotation.x))
+        rotation_node.set("y", str(self.rotation.y))
+        rotation_node.set("z", str(self.rotation.z))
+
+        scale_node = Element("Scale")
+        scale_node.set("x", str(self.scale.x))
+        scale_node.set("y", str(self.scale.y))
+        scale_node.set("z", str(self.scale.z))
+
+        transform_unk_node = Element("TransformUnk")
+        transform_unk_node.set("w", str(self.transform_unk.w))
+        transform_unk_node.set("x", str(self.transform_unk.x))
+        transform_unk_node.set("y", str(self.transform_unk.y))
+        transform_unk_node.set("z", str(self.transform_unk.z))
+
+        bone_node.append(name_node)
+        bone_node.append(tag_node)
+        bone_node.append(index_node)
+        bone_node.append(parent_index_node)
+        bone_node.append(sibling_index_node)
+        bone_node.append(flags_node)
+        bone_node.append(translation_node)
+        bone_node.append(rotation_node)
+        bone_node.append(scale_node)
+        bone_node.append(transform_unk_node)
+
+        return bone_node
+
 class Skeleton:
 
     def __init__(self):
-        self.unknown_1c = 0
-        self.unknown_50 = 0
-        self.unknown_54 = 0
+        #TODO: the current implementation works but IMHO there should be something more meaningful than "0"
+        #as long as it doesn't break in game
+        # from player_zero.yft
+        self.unknown_1c = 16777216
+        self.unknown_50 = 567032952
+        self.unknown_54 = 2134582703
         self.unknown_58 = 0
         self.bones = []
 
@@ -88,6 +148,33 @@ class Skeleton:
         skel = Skeleton()
         skel.read_xml(root)
         return skel
+
+    def write_xml(self):
+        skeleton_node = Element("Skeleton")
+        unk1c_node = Element("Unknown1C")
+        unk1c_node.set("value", str(self.unknown_1c))
+
+        unk50_node = Element("Unknown50")
+        unk50_node.set("value", str(self.unknown_50))
+
+        unk54_node = Element("Unknown54")
+        unk54_node.set("value", str(self.unknown_54))
+
+        unk58_node = Element("Unknown58")
+        unk58_node.set("value", str(self.unknown_58))
+
+        bones_node = Element("Bones")
+        for bone in self.bones:
+            bone_node = bone.write_xml()
+            bones_node.append(bone_node)
+
+        skeleton_node.append(unk1c_node)
+        skeleton_node.append(unk50_node)
+        skeleton_node.append(unk54_node)
+        skeleton_node.append(unk58_node)
+        skeleton_node.append(bones_node)
+
+        return skeleton_node
 
 class Joint:
     type = None
@@ -228,6 +315,105 @@ class Vertex:
 
         return result
 
+    @staticmethod
+    def __vector_tostring(vector):
+        string = [str(vector.x), str(vector.y)]
+        if(hasattr(vector, "z")):
+            string.append(str(vector.z))
+
+        if(hasattr(vector, "w")):
+            string.append(str(vector.w))
+
+        return " ".join(string)
+
+    @staticmethod
+    def __meshloopcolor_tostring(color):
+        string = " ".join(str(round(color[i] * 255)) for i in range(4))
+        return string 
+
+    def to_string(self, vlayout):
+        vertex_str = [None] * 15
+
+        if self.position is not None:
+            vertex_str[0] = self.__vector_tostring(self.position)
+
+        if self.normal is not None:
+            vertex_str[1] = self.__vector_tostring(self.normal)
+
+        if self.colors0 is not None:
+            vertex_str[2] = self.__meshloopcolor_tostring(self.colors0)
+
+        if self.colors1 is not None:
+            vertex_str[3] = self.__meshloopcolor_tostring(self.colors1)
+
+        if self.texcoord0 is not None:
+            vertex_str[4] = self.__vector_tostring(self.texcoord0)
+
+        if self.texcoord1 is not None:
+            vertex_str[5] = self.__vector_tostring(self.texcoord1)
+
+        if self.texcoord2 is not None:
+            vertex_str[6] = self.__vector_tostring(self.texcoord2)
+
+        if self.texcoord3 is not None:
+            vertex_str[7] = self.__vector_tostring(self.texcoord3)
+
+        if self.texcoord4 is not None:
+            vertex_str[8] = self.__vector_tostring(self.texcoord4)
+
+        if self.texcoord5 is not None:
+            vertex_str[9] = self.__vector_tostring(self.texcoord5)
+
+        if self.texcoord6 is not None:
+            vertex_str[10] = self.__vector_tostring(self.texcoord6)
+
+        if self.texcoord7 is not None:
+            vertex_str[11] = self.__vector_tostring(self.texcoord7)
+
+        if self.tangent is not None:
+            vertex_str[12] = self.__vector_tostring(self.tangent)
+
+        if self.blendweights is not None:
+            vertex_str[13] = ' '.join(str(i) for i in self.blendweights)
+
+        if self.blendindices is not None:
+            vertex_str[14] = ' '.join(str(i) for i in self.blendindices)
+
+        layout_map = {
+            "Position": 0,
+            "Normal": 1,
+            "Colour0": 2,
+            "Colour1": 3,
+            "TexCoord0": 4,
+            "TexCoord1": 5,
+            "TexCoord2": 6,
+            "TexCoord3": 7,
+            "TexCoord4": 8,
+            "TexCoord5": 9,
+            "TexCoord6": 10,
+            "TexCoord7": 11,
+            "Tangent": 12,
+            "BlendWeights": 13,
+            "BlendIndices": 14,
+        }
+
+        newlist = deque()
+
+        for i in range(len(vlayout)):
+            layout_key = layout_map[vlayout[i]]
+            if layout_key != None:
+                if vertex_str[layout_key] is None:
+                    raise TypeError("Missing layout item " + vlayout[i])
+
+                newlist.append(vertex_str[layout_key])
+            else:
+                print('Incorrect layout element', vlayout[i])
+
+        if (len(newlist) != len(vlayout)):
+            print('Incorrect layout parse')
+
+        return (" " * 3).join(newlist)
+
 class VertexBuffer:
 
     def __init__(self):
@@ -254,6 +440,53 @@ class VertexBuffer:
             v = Vertex.from_xml(self.layout, line.strip().split(" " * 3))
             self.vertices.append(v)
 
+    def write_xml(self):
+        vb_node = Element("VertexBuffer")
+
+        vbflags_node = Element("Flags")
+        vbflags_node.set("value", "0")
+        
+        vblayout_node = Element("Layout")
+        vblayout_node.set("type", "GTAV1")
+        for p in self.layout:
+            p_node = Element(p)
+            vblayout_node.append(p_node)
+
+        data_node = Element("Data")
+        data_node.text = self.data
+
+        vb_node.append(vbflags_node)
+        vb_node.append(vblayout_node)
+        vb_node.append(data_node)
+
+        return vb_node
+
+class IndexBuffer:
+
+    def __init__(self):
+        self.data = ""
+        self.buffer = None
+
+    def read_xml(self, root):
+        self.data = root.text
+
+        index_buffer = self.data.strip().replace("\n", "").split()
+        i_buf = []
+        for num in index_buffer:
+            i_buf.append(int(num))
+
+        self.buffer = [i_buf[i * 3:(i + 1) * 3] for i in range((len(i_buf) + 3 - 1) // 3 )] #split index buffer into 3s for each triangle
+
+    def write_xml(self):
+        ib_node = Element("IndexBuffer")
+
+        data_node = Element("Data")
+        data_node.text = self.data
+        
+        ib_node.append(data_node)
+
+        return ib_node
+
 class Geometry:
 
     def __init__(self):
@@ -261,7 +494,8 @@ class Geometry:
         self.bounding_box_min = []
         self.bounding_box_max = []
         self.vertex_buffer = "" 
-        self.index_buffer = []
+        self.index_buffer = ""
+        self.bone_ids = []
 
     def read_xml(self, root):
         self.shader_index = xmlhelper.ReadInt(root.find("ShaderIndex"))
@@ -274,13 +508,9 @@ class Geometry:
         if not len(self.vertex_buffer.vertices) > 0:
             return
 
-        index_buffer = root.find("IndexBuffer")[0].text.strip().replace("\n", "").split()
-        
-        i_buf = []
-        for num in index_buffer:
-            i_buf.append(int(num))
-
-        self.index_buffer = [i_buf[i * 3:(i + 1) * 3] for i in range((len(i_buf) + 3 - 1) // 3 )] #split index buffer into 3s for each triangle
+        ib = IndexBuffer()
+        ib.read_xml(root.find("IndexBuffer")[0])
+        self.index_buffer = ib
 
     @staticmethod
     def from_xml(root):
@@ -294,11 +524,44 @@ class Geometry:
         mod = obj.modifiers.new("Armature", 'ARMATURE')
         mod.object = armature
 
+    def write_xml(self):
+        i_node = Element("Item")
+        
+        shd_index = Element("ShaderIndex")
+        shd_index.set("value", str(self.shader_index))
+        
+        bbmin_node = Element("BoundingBoxMin")
+        bbmin_node.set("x", str(self.bound_box_min[0]))
+        bbmin_node.set("y", str(self.bound_box_min[1]))
+        bbmin_node.set("z", str(self.bound_box_min[2]))
+        bbmin_node.set("w", "0")
+
+        bbmax_node = Element("BoundingBoxMax")
+        bbmax_node.set("x", str(self.bound_box_max[0]))
+        bbmax_node.set("y", str(self.bound_box_max[1]))  
+        bbmax_node.set("z", str(self.bound_box_max[2]))
+        bbmax_node.set("w", "0")
+
+        boneids_node = Element("BoneIDs")
+        boneids_node.text = ", ".join(str(i) for i in range(len(self.bone_ids)))
+
+        vb_node = self.vertex_buffer.write_xml()
+        ib_node = self.index_buffer.write_xml()
+
+        i_node.append(shd_index)
+        i_node.append(bbmin_node)
+        i_node.append(bbmax_node)
+        i_node.append(boneids_node)
+        i_node.append(vb_node)
+        i_node.append(ib_node)
+
+        return i_node
+
 class DrawableModel:
 
     def __init__(self):
         self.render_mask = 0
-        self.flags = 0
+        self.flags = 1
         self.has_skin = False
         self.bone_index = 0
         self.unknown_1 = 0
@@ -326,6 +589,38 @@ class DrawableModel:
             for obj in objs:
                 Geometry.set_parent(obj, armature)
 
+    def write_xml(self):
+        m_node = Element("Item")
+        
+        rm_node = Element("RenderMask")
+        rm_node.set("value", str(self.render_mask))
+
+        flags_node = Element("Flags")
+        flags_node.set("value", str(self.flags))
+
+        has_skin_node = Element("HasSkin")
+        has_skin_node.set("value", str(int(self.has_skin)))
+
+        bone_index_node = Element("BoneIndex")
+        bone_index_node.set("value", str(self.bone_index))
+
+        unk1_node = Element("Unknown1")
+        unk1_node.set("value", str(self.unknown_1))
+
+        geo_node = Element("Geometries")
+        for geo in self.geometries:
+            item = geo.write_xml()
+            geo_node.append(item)
+
+        m_node.append(rm_node)
+        m_node.append(flags_node)
+        m_node.append(has_skin_node)
+        m_node.append(bone_index_node)
+        m_node.append(unk1_node)
+        m_node.append(geo_node)
+
+        return m_node
+
 class Drawable:
 
     def __init__(self):
@@ -336,7 +631,7 @@ class Drawable:
         self.bounding_box_min = [0, 0, 0]
         self.bounding_box_max = [0, 0, 0]
         self.lod_dist_high = 0 #9998?
-        self.lod_dist_med= 0 #9998?
+        self.lod_dist_med = 0 #9998?
         self.lod_dist_low = 0 #9998?
         self.lod_dist_vlow = 0 #9998?
         self.flags_high = 0 

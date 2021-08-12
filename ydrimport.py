@@ -85,7 +85,7 @@ def create_geometry(geometry, bones, name):
 
     # for i in geometry.index_buffer:
     #     faces.append(i)
-    faces = geometry.index_buffer
+    faces = geometry.index_buffer.buffer
 
     mesh = bpy.data.meshes.new("Geometry")
     mesh.from_pydata(vertices, [], faces)

@@ -1,6 +1,6 @@
 import bpy
 import os
-from .resources.shader import Shader
+from .resources.shader import Shader, ShaderManager
 
 def get_child_node(node):
     
@@ -202,24 +202,6 @@ def link_terrain_shader(node_tree):
     
     links.new(mix3.outputs["Color"], node_tree.nodes["Material Output"].inputs["Surface"])
 
-def create_shader(shadername, shadermanager):
-
-    mat = bpy.data.materials.new(shadername)
-    mat.use_nodes = True
-
-    parameters = shadermanager.shaders[shadername].parameters
-    node_tree = mat.node_tree
-
-    for param in parameters:
-        if(param.type == "Texture"):
-            create_image_node(node_tree, param)
-        elif(param.type == "Vector"):
-            create_vector_nodes(node_tree, param)
-
-    organize_node_tree(node_tree)
-
-    return mat
-
 def assign_texture(node, param, texture, filepath):
 
     if filepath is not None:
@@ -302,6 +284,25 @@ def assign_texture(node, param, texture, filepath):
         node.unk21 = True
     if("UNK24" in uf):
         node.unk24 = True
+
+def create_shader(shadername, shadermanager):
+
+    mat = bpy.data.materials.new(shadername)
+    mat.use_nodes = True
+
+    parameters = shadermanager.shaders[shadername.rstrip(".sps")].parameters
+    node_tree = mat.node_tree
+
+    for param in parameters:
+        if(param.type == "Texture"):
+            create_image_node(node_tree, param)
+        elif(param.type == "Vector"):
+            create_vector_nodes(node_tree, param)
+
+    organize_node_tree(node_tree)
+    mat.sollumtype = "GTA"
+
+    return mat
 
 def create_material(shader, texture_dictionary=None, filepath=None):
     
