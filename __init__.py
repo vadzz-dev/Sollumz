@@ -39,10 +39,12 @@ if "bpy" in locals():
     importlib.reload(ybnexport)
     importlib.reload(yftimport)
     importlib.reload(ycdimport)
+    importlib.reload(ycdexport)
     importlib.reload(sollumz_ui)
     importlib.reload(collisionmatoperators)
     importlib.reload(tools)
     importlib.reload(resources)
+    importlib.reload(formats)
 else:
     from . import properties
     from . import shaderoperators
@@ -53,10 +55,12 @@ else:
     from . import ybnexport 
     from . import yftimport 
     from . import ycdimport 
+    from . import ycdexport
     from . import sollumz_ui
     from . import collisionmatoperators
     from . import tools
     from . import resources
+    from . import formats
     
 import bpy
 
@@ -71,6 +75,7 @@ def register():
     ybnexport.register()
     yftimport.register()
     ycdimport.register()
+    ycdexport.register()
     
 def unregister():
     properties.unregister()
@@ -83,6 +88,7 @@ def unregister():
     ybnexport.unregister()
     yftimport.unregister()
     ycdimport.unregister()
+    ycdexport.unregister()
 
 if __name__ == "__main__":
     register() 
