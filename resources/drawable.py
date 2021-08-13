@@ -3,9 +3,8 @@ import xml.etree.ElementTree as ET
 import time
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from mathutils import Vector, Quaternion, Matrix
-from ..ycdimport import xml_read_text
 from ..ybnimport import read_composite_info_children
-from ..tools import xmlhelper
+from ..tools import xmlhelper, xml
 from .shader import ShaderGroup
 from collections import deque
 
@@ -661,7 +660,7 @@ class Drawable:
         if root is None:
             return
 
-        self.name = xml_read_text(root.find("Name"), "Drawable", str)
+        self.name = xml.ReadText(root.find("Name"), "Drawable", str)
 
         self.lod_dist_high = float(root.find("LodDistHigh").attrib["value"])
         self.lod_dist_med = float(root.find("LodDistMed").attrib["value"])

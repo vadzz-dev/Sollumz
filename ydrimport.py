@@ -9,7 +9,6 @@ from bpy.types import Operator
 import time
 import random 
 from .ybnimport import read_composite_info_children 
-from .ycdimport import xml_read_value, xml_read_text
 from .resources.drawable import Drawable, DrawableDictionary, DrawableModel
 from .tools.utils import build_bones_dict
 from .tools import cats as Cats

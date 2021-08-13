@@ -5,7 +5,6 @@ from bpy_extras.io_utils import ExportHelper
 from bpy.types import Operator
 
 from .formats.ycd.ClipDictionary import ClipDictionary
-from .ydrexport import prettify
 
 def findClipDictionary(context):
     objects = context.scene.objects
@@ -27,9 +26,9 @@ def write_ycd_xml(context, filepath):
 
     print("*** Complete ***")
 
-    xmlstr = prettify(clipDictNode)
+    xmlstr = ET.tostring(clipDictNode)
 
-    with open(filepath, "w") as f:
+    with open(filepath, "wb") as f:
         f.write(xmlstr)
         return "Sollumz Clip Dictionary was succesfully exported to " + filepath
 
