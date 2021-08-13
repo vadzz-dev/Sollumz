@@ -177,10 +177,6 @@ class Skeleton:
         return skeleton_node
 
 class Joint:
-    type = None
-    tag = None
-    min = None
-    max = None
 
     def __init__(self, xml, type):
 
@@ -218,7 +214,7 @@ class Joint:
 
         return bone.name
 
-    def export(self, bone):
+    def write_xml(self, bone):
         if bone is None:
             return None
         
@@ -460,6 +456,17 @@ class VertexBuffer:
         vb_node.append(data_node)
 
         return vb_node
+
+    def vertices_to_data(self):
+        allstrings = deque()
+        allstrings.append("\n") #makes xml a little prettier
+
+        for vertex in self.vertices:
+            vstring = (" " * 5, vertex.to_string(self.layout))
+            allstrings.append("".join(vstring))
+            allstrings.append('\n')
+        
+        self.data = "".join(allstrings)
 
 class IndexBuffer:
 
@@ -713,17 +720,20 @@ class Drawable:
 
     @staticmethod
     def from_xml(root):
+
         drawable = Drawable()
         drawable.read_xml(root)
         return drawable
 
     def get_bones(self):
+
         if self.skeleton is None:
             return None
 
         return self.skeleton.bones
 
     def is_empty(self):
+
         if len(self.drawable_models_high) > 0:
             return False
 
@@ -737,6 +747,120 @@ class Drawable:
             return False
 
         return True
+
+    def write_xml(self, root_name="Drawable"):
+
+        drawable_node = Element(root_name)
+
+        name_node = Element("Name")
+        name_node.text = self.name
+        
+        bsc_node = Element("BoundingSphereCenter")
+        bsc_node.set("x", str(self.bounding_sphere_center[0]))
+        bsc_node.set("y", str(self.bounding_sphere_center[1]))
+        bsc_node.set("z", str(self.bounding_sphere_center[2]))
+        
+        bsr_node = Element("BoundingSphereRadius")
+        bsr_node.set("value", str(self.bounding_sphere_radius))
+        
+        bbmin_node = Element("BoundingBoxMin")
+        bbmin_node.set("x", str(self.bounding_box_min[0]))
+        bbmin_node.set("y", str(self.bounding_box_min[1]))
+        bbmin_node.set("z", str(self.bounding_box_min[2]))
+        
+        bbmax_node = Element("BoundingBoxMax")
+        bbmax_node.set("x", str(self.bounding_box_max[0]))
+        bbmax_node.set("y", str(self.bounding_box_max[1]))
+        bbmax_node.set("z", str(self.bounding_box_max[2]))
+        
+        ldh_node = Element("LodDistHigh")
+        ldh_node.set("value", str(self.lod_dist_high))
+        ldm_node = Element("LodDistMed")
+        ldm_node.set("value", str(self.lod_dist_med))
+        ldl_node = Element("LodDistLow")
+        ldl_node.set("value", str(self.lod_dist_low))
+        ldvl_node = Element("LodDistVlow")
+        ldvl_node.set("value", str(self.lod_dist_vlow)) 
+
+        flagsh_node = Element("FlagsHigh")
+        flagsh_node.set("value", str(self.flags_high))
+        flagsm_node = Element("FlagsMed")
+        flagsm_node.set("value", str(self.flags_med))
+        flagsl_node = Element("FlagsLow")
+        flagsl_node.set("value", str(self.flags_low))
+        flagsvl_node = Element("FlagsVlow")
+        flagsvl_node.set("value", str(self.flags_vlow))
+        Unk9a_node = Element("Unknown9A")
+        Unk9a_node.set("value", str(self.unknown_9A))
+
+        skeleton_node = None
+        if self.skeleton is not None:
+            skeleton_node = self.skeleton.write_xml()
+
+        drawablemodels_high_node = None
+        if len(self.drawable_models_high) != 0:
+            drawablemodels_high_node = Element("DrawableModelsHigh")
+            for model in self.drawable_models_high:
+                item = model.write_xml()
+                drawablemodels_high_node.append(item)
+
+        drawablemodels_medium_node = None
+        if len(self.drawable_models_med) != 0:
+            drawablemodels_medium_node = Element("DrawableModelsMedium")
+            for model in self.drawable_models_med:
+                item = model.write_xml()
+                drawablemodels_medium_node.append(item)
+
+        drawablemodels_low_node = None
+        if len(self.drawable_models_low) != 0:
+            drawablemodels_low_node = Element("DrawableModelsLow")
+            for model in self.drawable_models_low:
+                item = model.write_xml()
+                drawablemodels_low_node.append(item)
+
+        drawablemodels_vlow_node = None
+        if len(self.drawable_models_vlow) != 0:
+            drawablemodels_vlow_node = Element("DrawableModelsLow")
+            for model in self.drawable_models_vlow:
+                item = model.write_xml()
+                drawablemodels_vlow_node.append(item)
+
+        bounds_node = None
+
+        drawable_node.append(name_node)
+        drawable_node.append(bsc_node)
+        drawable_node.append(bsr_node)
+        drawable_node.append(bbmin_node)
+        drawable_node.append(bbmax_node)
+        drawable_node.append(ldh_node)
+        drawable_node.append(ldm_node)
+        drawable_node.append(ldl_node)
+        drawable_node.append(ldvl_node)
+        drawable_node.append(flagsh_node)
+        drawable_node.append(flagsm_node)
+        drawable_node.append(flagsl_node)
+        drawable_node.append(flagsvl_node)
+        drawable_node.append(Unk9a_node)
+        #drawable_node.append(shadergroup_node)
+        if skeleton_node != None:
+            drawable_node.append(skeleton_node)
+
+        if drawablemodels_high_node != None:
+            drawable_node.append(drawablemodels_high_node)
+
+        if drawablemodels_medium_node != None:
+            drawable_node.append(drawablemodels_medium_node)
+
+        if drawablemodels_low_node != None:
+            drawable_node.append(drawablemodels_low_node)
+
+        if drawablemodels_vlow_node != None:
+            drawable_node.append(drawablemodels_vlow_node)
+
+        if(bounds_node != None):
+            drawable_node.append(bounds_node)
+
+        return drawable_node
 
 class DrawableDictionary:
 

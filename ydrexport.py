@@ -87,15 +87,13 @@ def process_uv(uv):
 
 def get_vertex_string(obj, vlayout, bones, depsgraph):
     mesh = bpy.data.meshes.new_from_object(obj, preserve_all_data_layers=True, depsgraph=depsgraph)
-
-    allstrings = deque()
-    allstrings.append("\n") #makes xml a little prettier
     
     vertamount = len(mesh.vertices)
     texcoords = {}
 
     vb = VertexBuffer()
     vb.vertices = [None] * vertamount
+    vb.layout = vlayout
 
     for i in range(6):
         texcoords[i] = [None] * vertamount       
@@ -186,24 +184,22 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
             
             vb.vertices[vi] = vertex
 
-    for vertex in vb.vertices:
-        vstring = deque(" " * 5)
-        vstring.append(vertex.to_string(vlayout))
-        allstrings.append("".join(vstring))
-    
-    vb.data = "\n".join(allstrings)
+    vb.vertices_to_data()
 
     return vb
 
 def get_index_string(mesh):
     
+    ib = IndexBuffer()
     index_list = deque()
     
     for poly in mesh.polygons:
         for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
             index_list.append(str(mesh.loops[loop_index].vertex_index))
             
-    return " ".join(index_list)
+    ib.data = " ".join(index_list)
+
+    return ib
 
 def fix_shader_name(name, no_extension = False): #because blender renames everything to .00X
     newname = ""
@@ -273,12 +269,9 @@ def write_model_node(objs, materials, bones):
         vlayout = get_vertex_layout(shader.name)
 
         vb = get_vertex_string(obj_eval, vlayout, bones, depsgraph)
-        for p in vlayout:
-            vb.layout.append(p)
         i_node.vertex_buffer = vb
 
-        ib = IndexBuffer()
-        ib.data = get_index_string(model)
+        ib = get_index_string(model)
         i_node.index_buffer = ib
 
         m_node.geometries.append(i_node)
@@ -288,38 +281,14 @@ def write_model_node(objs, materials, bones):
 def write_drawablemodels_node(models, materials, bones):
     
     high_models = []
-    med_models = []
-    low_models = []
     
     for obj in models:
-        if(obj.level_of_detail == "High"):
-            high_models.append(obj)
-        if(obj.level_of_detail == "Medium"):
-            med_models.append(obj)
-        if(obj.level_of_detail == "Low"):
-            low_models.append(obj)
-    
-    drawablemodels_high_node = None
-    drawablemodels_med_node = None 
-    drawablemodels_low_node = None 
-    
-    if(len(high_models) != 0):
-        drawablemodels_high_node = Element("DrawableModelsHigh")
-        drawablemodels_high_node.append(write_model_node(high_models, materials, bones).write_xml())
-    if(len(med_models) != 0):
-        drawablemodels_med_node = Element("DrawableModelsMedium")
-        drawablemodels_med_node.append(write_model_node(med_models, materials, bones).write_xml())
-    if(len(low_models) != 0):
-        drawablemodels_low_node = Element("DrawableModelsLow")
-        drawablemodels_low_node.append(write_model_node(low_models, materials, bones).write_xml())
+        high_models.append(obj)
     
     dm_nodes = []
-    if(drawablemodels_high_node != None):
-        dm_nodes.append(drawablemodels_high_node)
-    if(drawablemodels_med_node != None):
-        dm_nodes.append(drawablemodels_med_node)
-    if(drawablemodels_low_node != None):
-        dm_nodes.append(drawablemodels_low_node)
+    
+    if(len(high_models) != 0):
+        dm_nodes.append(write_model_node(high_models, materials, bones))
     
     return dm_nodes
 
@@ -778,38 +747,25 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
     bbminmax = get_bbs(children)
     bbsphere = get_sphere_bb(children, bbminmax)
     
-    drawable_node = Element(root_name)
-    name_node = Element("Name")
-    name_node.text = obj.name.split(".")[0]
+    drawable_node = Drawable()
+    drawable_node.name = obj.name.split(".")[0]
     
-    bsc_node = Element("BoundingSphereCenter")
-    bsc_node.set("x", str(bbsphere[0][0]))
-    bsc_node.set("y", str(bbsphere[0][1]))
-    bsc_node.set("z", str(bbsphere[0][2]))
+    drawable_node.bounding_sphere_center = bbsphere[0]
+    drawable_node.bounding_sphere_radius = bbsphere[1]
     
-    bsr_node = Element("BoundingSphereRadius")
-    bsr_node.set("value", str(bbsphere[1]))
+    drawable_node.bounding_box_min = bbminmax[0]
+    drawable_node.bounding_box_max = bbminmax[1]
     
-    bbmin_node = Element("BoundingBoxMin")
-    bbmin_node.set("x", str(bbminmax[0][0]))
-    bbmin_node.set("y", str(bbminmax[0][1]))
-    bbmin_node.set("z", str(bbminmax[0][2]))
-    
-    bbmax_node = Element("BoundingBoxMax")
-    bbmax_node.set("x", str(bbminmax[1][0]))
-    bbmax_node.set("y", str(bbminmax[1][1]))
-    bbmax_node.set("z", str(bbminmax[1][2]))
-    
-    ldh_node = Element("LodDistHigh")
-    ldh_node.set("value", str(obj.drawble_distance_high))
-    ldm_node = Element("LodDistMed")
-    ldm_node.set("value", str(obj.drawble_distance_medium))
-    ldl_node = Element("LodDistLow")
-    ldl_node.set("value", str(obj.drawble_distance_low))
-    ldvl_node = Element("LodDistVlow")
-    ldvl_node.set("value", str(obj.drawble_distance_vlow)) 
+    drawable_node.lod_dist_high = obj.drawble_distance_high
+    drawable_node.lod_dist_med = obj.drawble_distance_medium
+    drawable_node.lod_dist_low = obj.drawble_distance_low
+    drawable_node.lod_dist_vlow = obj.drawble_distance_vlow
 
-    geometrys = []
+    geometries_high = []
+    geometries_med = []
+    geometries_low = []
+    geometries_vlow = []
+
     materials = get_used_materials(obj)
     bounds = []
     if bones == None:
@@ -822,62 +778,41 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
     
     for c in children:
         if(c.sollumtype == "Geometry"):
-            geometrys.append(c)
             if(c.level_of_detail == "High"):
+                geometries_high.append(c)
                 flagshigh += 1
             if(c.level_of_detail == "Medium"):
+                geometries_med.append(c)
                 flagsmed += 1
             if(c.level_of_detail == "Low"):
+                geometries_low.append(c)
                 flagslow += 1
             if(c.level_of_detail == "Very Low"):
+                geometries_vlow.append(c)
                 flagsvlow += 1
-            
-    flagsh_node = Element("FlagsHigh")
-    flagsh_node.set("value", str(flagshigh))
-    flagsm_node = Element("FlagsMed")
-    flagsm_node.set("value", str(flagsmed))
-    flagsl_node = Element("FlagsLow")
-    flagsl_node.set("value", str(flagslow))
-    flagsvl_node = Element("FlagsVlow")
-    flagsvl_node.set("value", str(flagsvlow))
-    Unk9a_node = Element("Unknown9A")
-    Unk9a_node.set("value", "0")
+
+    drawable_node.flags_high = flagshigh
+    drawable_node.flags_med = flagsmed
+    drawable_node.flags_low = flagslow
+    drawable_node.flags_vlow = flagsvlow
 
     shadergroup_node = write_shader_group_node(materials, filepath)
-    skeleton = write_skeleton_node(obj)
-    skeleton_node = None
-    if skeleton is not None:
-        skeleton_node = skeleton.write_xml()
-        
-    drawablemodels_node = write_drawablemodels_node(geometrys, materials, bones)
+
+    drawable_node.skeleton = write_skeleton_node(obj)
+    drawable_node.drawable_models_high = write_drawablemodels_node(geometries_high, materials, bones)
+    drawable_node.drawable_models_med = write_drawablemodels_node(geometries_med, materials, bones)
+    drawable_node.drawable_models_low = write_drawablemodels_node(geometries_low, materials, bones)
+    drawable_node.drawable_models_vlow = write_drawablemodels_node(geometries_vlow, materials, bones)
+
     bounds_node = None
     
-    drawable_node.append(name_node)
-    drawable_node.append(bsc_node)
-    drawable_node.append(bsr_node)
-    drawable_node.append(bbmin_node)
-    drawable_node.append(bbmax_node)
-    drawable_node.append(ldh_node)
-    drawable_node.append(ldm_node)
-    drawable_node.append(ldl_node)
-    drawable_node.append(ldvl_node)
-    drawable_node.append(flagsh_node)
-    drawable_node.append(flagsm_node)
-    drawable_node.append(flagsl_node)
-    drawable_node.append(flagsvl_node)
-    drawable_node.append(Unk9a_node)
-    drawable_node.append(shadergroup_node)
-    if skeleton_node != None:
-        drawable_node.append(skeleton_node)
+    node = drawable_node.write_xml(root_name)
+    node.append(shadergroup_node)
 
-    for dm_node in drawablemodels_node:
-        drawable_node.append(dm_node)
     if(bounds_node != None):
-        drawable_node.append(bounds_node)
+        node.append(bounds_node)
     
-    #print(prettify(drawable_node))
-    
-    return drawable_node
+    return node
     
 def get_hash(obj):
     return JenkHash.Generate(obj.name.split(".")[0])
