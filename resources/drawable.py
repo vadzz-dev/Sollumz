@@ -747,7 +747,7 @@ class Drawable:
 
         return True
 
-    def write_xml(self, root_name="Drawable"):
+    def write_xml(self, root_name="Drawable", shadergroup_node=None):
 
         drawable_node = Element(root_name)
 
@@ -840,7 +840,10 @@ class Drawable:
         drawable_node.append(flagsl_node)
         drawable_node.append(flagsvl_node)
         drawable_node.append(Unk9a_node)
-        #drawable_node.append(shadergroup_node)
+        
+        if shadergroup_node is not None:
+            drawable_node.append(shadergroup_node)
+
         if skeleton_node != None:
             drawable_node.append(skeleton_node)
 

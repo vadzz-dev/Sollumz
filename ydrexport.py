@@ -15,6 +15,7 @@ from datetime import datetime
 from . import shaderoperators as Shader
 from .tools import jenkhash as JenkHash
 from .resources.drawable import Drawable, DrawableDictionary, DrawableModel, Skeleton, Bone, Vertex, VertexBuffer, IndexBuffer, Geometry
+from .sollumz_shaders import load_shared_txds
 
 def get_obj_children(obj):
     children = [] 
@@ -540,7 +541,7 @@ def write_tditem_node(exportpath, mat):
                     
     return i_nodes 
 
-def write_texturedictionary_node(materials, exportpath):
+def write_texturedictionary_node(materials, exportpath, shared_txds=None):
     
     td_node = Element("TextureDictionary")
     
@@ -553,7 +554,7 @@ def write_texturedictionary_node(materials, exportpath):
             if(node != None):
                 all_nodes.append(node)
     
-    #removes duplicate embedded textures!
+    #removes duplicates and shared textures!
     for node in all_nodes: 
         t_name = node[0].text
         
@@ -562,19 +563,24 @@ def write_texturedictionary_node(materials, exportpath):
         for t in td_node:
             if(t[0].text == t_name):
                 append = False
+
+        if shared_txds is not None:
+            for txd in shared_txds.values():
+                if t_name in txd:
+                    append = False
                 
         if(append == True):
             td_node.append(node)        
     
     return td_node
 
-def write_shader_group_node(materials, filepath):
+def write_shader_group_node(materials, filepath, shared_txds=None):
     
     shaderg_node = Element("ShaderGroup")
     unk30_node = Element("Unknown30")
     unk30_node.set("value", "0")
     
-    td_node = write_texturedictionary_node(materials, filepath)
+    td_node = write_texturedictionary_node(materials, filepath, shared_txds)
     
     shader_node = write_shaders_node(materials)
     
@@ -741,7 +747,7 @@ def get_used_materials(drawable):
 
     return materials
 
-def write_drawable(obj, filepath, root_name="Drawable", bones=None):
+def write_drawable(obj, filepath, root_name="Drawable", bones=None, shared_txds=None):
     
     children = get_obj_children(obj)
     bbminmax = get_bbs(children)
@@ -796,7 +802,7 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
     drawable_node.flags_low = flagslow
     drawable_node.flags_vlow = flagsvlow
 
-    shadergroup_node = write_shader_group_node(materials, filepath)
+    shadergroup_node = write_shader_group_node(materials, filepath, shared_txds)
 
     drawable_node.skeleton = write_skeleton_node(obj)
     drawable_node.drawable_models_high = write_drawablemodels_node(geometries_high, materials, bones)
@@ -806,8 +812,7 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None):
 
     bounds_node = None
     
-    node = drawable_node.write_xml(root_name)
-    node.append(shadergroup_node)
+    node = drawable_node.write_xml(root_name, shadergroup_node=shadergroup_node)
 
     if(bounds_node != None):
         node.append(bounds_node)
@@ -836,7 +841,7 @@ def write_drawable_dictionary(obj, filepath):
 
     return drawable_dictionary_node
 
-def write_ydr_xml(context, filepath):
+def write_ydr_xml(context, filepath, shared_txds=None):
     
     root = None
 
@@ -848,7 +853,7 @@ def write_ydr_xml(context, filepath):
     
     #select the object first?
     if(active_object.sollumtype == "Drawable"):
-        root = write_drawable(active_object, filepath)
+        root = write_drawable(active_object, filepath, shared_txds=shared_txds)
         try: 
             print("*** Complete ***")
         except:
@@ -913,8 +918,11 @@ class ExportYDR(Operator, ExportHelper):
     def execute(self, context):
         start = datetime.now()
         
+        prefs = context.preferences.addons[__package__].preferences
+        shared_txds = load_shared_txds(prefs.shared_textures_path)
+        
         #try:
-        result = write_ydr_xml(context, self.filepath)
+        result = write_ydr_xml(context, self.filepath, shared_txds)
         self.report({'INFO'}, result)
         
         #except Exception:
