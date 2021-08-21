@@ -12,7 +12,7 @@ from .ybnimport import read_composite_info_children
 from .resources.drawable import Drawable, DrawableDictionary, DrawableModel
 from .tools.utils import build_bones_dict
 from .tools import cats as Cats
-from .sollumz_shaders import create_material
+from .sollumz_shaders import create_material, load_shared_txds
 
 def process_uv(uv):
     u = uv[0]
@@ -233,7 +233,7 @@ def create_skeleton(skeleton, armature):
 
     return armature
 
-def create_drawable(drawable, filepath=None, armature=None, bones_override=None, clean=False):
+def create_drawable(drawable, filepath=None, armature=None, bones_override=None, clean=False, shared_txds=None):
 
     if clean is True:
         if drawable.is_empty() is True:
@@ -270,7 +270,7 @@ def create_drawable(drawable, filepath=None, armature=None, bones_override=None,
         texture_dictionary = drawable.shader_group.texture_dictionary
         materials = []
         for shader in shaders:
-            materials.append(create_material(shader, texture_dictionary, filepath))
+            materials.append(create_material(shader, texture_dictionary, filepath, shared_txds))
 
     for dm in drawable.drawable_models_high:
         model = create_drawable_model(dm, materials, bones, drawable.name, "High")
@@ -375,11 +375,15 @@ class ImportYDR(Operator, ImportHelper):
     def execute(self, context):
         start = time.time()
         
+        prefs = context.preferences.addons[__package__].preferences
+
         tree = ET.parse(self.filepath)
         root = tree.getroot()
 
         drawable = read_ydr_xml(root)
-        vmodel_obj = create_drawable(drawable)
+        shared_txds = load_shared_txds(prefs.shared_textures_path)
+
+        vmodel_obj = create_drawable(drawable, self.filepath, shared_txds=shared_txds)
 
         finished = time.time()
         

@@ -1,6 +1,7 @@
 import bpy
 import os
-from .resources.shader import Shader, ShaderManager
+import xml.etree.ElementTree as ET
+from .resources.shader import Shader, ShaderManager, TextureDictionary
 
 def get_child_node(node):
     
@@ -202,11 +203,8 @@ def link_terrain_shader(node_tree):
     
     links.new(mix3.outputs["Color"], node_tree.nodes["Material Output"].inputs["Surface"])
 
-def assign_texture(node, param, texture, filepath):
-
-    if filepath is not None:
-        filename = os.path.basename(filepath)[:-8]
-        texture_dir = os.path.dirname(os.path.abspath(filepath)) + "\\" + filename + "\\"
+def assign_texture(node, param, texture, texture_dir):
+    if texture_dir is not None:
         if(isinstance(node, bpy.types.ShaderNodeTexImage)):
             if texture is not None:
                 texture_name = texture.filename
@@ -215,7 +213,7 @@ def assign_texture(node, param, texture, filepath):
 
             texture_path = texture_dir + texture_name
             node.texture_name = texture_name.rstrip(".dds")
-            if(os.path.isfile(texture_dir + texture_name)):
+            if(os.path.isfile(texture_path)):
                 img = bpy.data.images.load(texture_path, check_existing=True)
                 node.image = img 
 
@@ -304,7 +302,7 @@ def create_shader(shadername, shadermanager):
 
     return mat
 
-def create_material(shader, texture_dictionary=None, filepath=None):
+def create_material(shader, texture_dictionary=None, filepath=None, shared_txds=None):
     
     parameters = shader.parameters
     filename = shader.filename
@@ -323,9 +321,26 @@ def create_material(shader, texture_dictionary=None, filepath=None):
 
     node_tree = mat.node_tree
     for param in parameters:
+        print(param.type)
         if(param.type == "Texture"):
             node = create_image_node(node_tree, param)
-            assign_texture(node, param, dict.get(param.texture_name, None), filepath)
+            texture = dict.get(param.texture_name, None)
+            texture_dir = None
+
+            if texture is not None:
+                filename = None
+                if filepath is not None:
+                    filename = os.path.basename(filepath)[:-8]
+                    texture_dir = os.path.dirname(os.path.abspath(filepath)) + "\\" + filename + "\\"
+            else:
+                for dir, txd in shared_txds.items():
+                    texture = txd.get(param.texture_name, None)
+                    if texture is not None:
+                        texture_dir = dir
+                        break
+            
+            assign_texture(node, param, texture, texture_dir)
+                    
         elif(param.type == "Vector"):
             create_vector_nodes(node_tree, param)
 
@@ -333,6 +348,19 @@ def create_material(shader, texture_dictionary=None, filepath=None):
     mat.sollumtype = "GTA"
 
     return mat
+
+def load_shared_txds(path):
+    txds = {}
+
+    for filename in os.listdir(path):
+        if filename.endswith(".ytd.xml"):
+            tree = ET.parse(path + '/' + filename)
+            txd = TextureDictionary()
+            txd.read_xml(tree.getroot())
+
+            txds[os.path.abspath(path) + '\\' + filename[:-8] + '\\'] = txd.to_dict()
+
+    return txds
 
 collisionmats = {
         0:["DEFAULT",(255,0,255,255)],

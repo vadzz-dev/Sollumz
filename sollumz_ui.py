@@ -1,8 +1,21 @@
 import bpy
 import os 
 from .tools import meshgen as MeshGen
-from bpy.types import PropertyGroup, Panel, UIList, Operator
+from bpy.types import PropertyGroup, Panel, UIList, Operator, AddonPreferences
 from bpy.props import CollectionProperty, PointerProperty, StringProperty, IntProperty, BoolProperty, FloatProperty
+
+class SollumzPreferences(AddonPreferences):
+    bl_idname = __package__
+
+    shared_textures_path: StringProperty(
+        name="Shared textures path",
+        subtype='FILE_PATH',
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "shared_textures_path")
+
 
 class SollumzMainPanel(bpy.types.Panel):
     bl_label = "Sollumz"
@@ -373,6 +386,7 @@ classes = (
     SollumzBonePanel,
     SollumzGroupPanel,
     SollumzAnimPanel,
+    SollumzPreferences,
     SOLLUMZ_UL_BoneFlags,
     SOLLUMZ_OT_BoneFlags_NewItem,
     SOLLUMZ_OT_BoneFlags_DeleteItem,
