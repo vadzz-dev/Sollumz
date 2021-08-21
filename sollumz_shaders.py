@@ -212,7 +212,7 @@ def assign_texture(node, param, texture, texture_dir):
                 texture_name = param.texture_name + ".dds"
 
             texture_path = texture_dir + texture_name
-            node.texture_name = texture_name.rstrip(".dds")
+            node.texture_name = texture_name
             if(os.path.isfile(texture_path)):
                 img = bpy.data.images.load(texture_path, check_existing=True)
                 node.image = img 
