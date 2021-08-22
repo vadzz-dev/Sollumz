@@ -16,6 +16,7 @@ from . import shaderoperators as Shader
 from .tools import jenkhash as JenkHash
 from .resources.drawable import Drawable, DrawableDictionary, DrawableModel, Skeleton, Bone, Vertex, VertexBuffer, IndexBuffer, Geometry
 from .sollumz_shaders import load_shared_txds
+from .tools.utils import format_float
 
 def get_obj_children(obj):
     children = [] 
@@ -318,11 +319,12 @@ def write_imageparam_node(node):
         name_node = Element("Name")
         name_node.text = tname
     
-        unk32_node = Element("Unk32")
-        unk32_node.set("value", "128")
+        # Looks like it's not used by codewalker
+        # unk32_node = Element("Unk32")
+        # unk32_node.set("value", "128")
     
         i_node.append(name_node)
-        i_node.append(unk32_node)
+        # i_node.append(unk32_node)
     
     return i_node 
 
@@ -336,10 +338,10 @@ def write_vectorparam_node(nodes):
     
     i_node.set("name", name)
     i_node.set("type", type)
-    i_node.set("x", str(nodes[0].outputs[0].default_value))
-    i_node.set("y", str(nodes[1].outputs[0].default_value))
-    i_node.set("z", str(nodes[2].outputs[0].default_value))
-    i_node.set("w", str(nodes[3].outputs[0].default_value))
+    i_node.set("x", format_float(nodes[0].outputs[0].default_value))
+    i_node.set("y", format_float(nodes[1].outputs[0].default_value))
+    i_node.set("z", format_float(nodes[2].outputs[0].default_value))
+    i_node.set("w", format_float(nodes[3].outputs[0].default_value))
     
     return i_node
 
@@ -865,8 +867,8 @@ def write_ydr_xml(context, filepath, shared_txds=None):
     
     # xmlstr = prettify(root)
     # Formatting.prettyxml(root)
-    ElementTree.indent(root)
-    xmlstr = ElementTree.tostring(root)
+    ElementTree.indent(root, space=' ')
+    xmlstr = ElementTree.tostring(root, 'utf-8', xml_declaration=True)
     with open(filepath, "wb") as f:
         f.write(xmlstr)
         return "Sollumz Drawable was succesfully exported to " + filepath

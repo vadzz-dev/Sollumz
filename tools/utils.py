@@ -18,3 +18,5 @@ def build_bones_dict(obj):
 
     return bones_dict
     
+def format_float(num):
+    return str(round(num, 7)).rstrip('.0')

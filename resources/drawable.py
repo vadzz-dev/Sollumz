@@ -7,6 +7,7 @@ from ..ybnimport import read_composite_info_children
 from ..tools import xmlhelper, xml
 from .shader import ShaderGroup
 from collections import deque
+from ..tools.utils import format_float
 
 class Bone:
 
@@ -312,12 +313,12 @@ class Vertex:
 
     @staticmethod
     def __vector_tostring(vector):
-        string = [str(vector.x), str(vector.y)]
+        string = [format_float(vector.x), format_float(vector.y)]
         if(hasattr(vector, "z")):
-            string.append(str(vector.z))
+            string.append(format_float(vector.z))
 
         if(hasattr(vector, "w")):
-            string.append(str(vector.w))
+            string.append(format_float(vector.w))
 
         return " ".join(string)
 
@@ -447,7 +448,7 @@ class VertexBuffer:
             p_node = Element(p)
             vblayout_node.append(p_node)
 
-        data_node = Element("Data")
+        data_node = Element("Data2")
         data_node.text = self.data
 
         vb_node.append(vbflags_node)
@@ -461,10 +462,12 @@ class VertexBuffer:
         allstrings.append("\n") #makes xml a little prettier
 
         for vertex in self.vertices:
-            vstring = (" " * 5, vertex.to_string(self.layout))
-            allstrings.append("".join(vstring))
+            allstrings.append(' ' * 7)
+            allstrings.append(vertex.to_string(self.layout))
             allstrings.append('\n')
         
+        allstrings.append(' ' * 6)
+
         self.data = "".join(allstrings)
 
 class IndexBuffer:
@@ -755,31 +758,31 @@ class Drawable:
         name_node.text = self.name
         
         bsc_node = Element("BoundingSphereCenter")
-        bsc_node.set("x", str(self.bounding_sphere_center[0]))
-        bsc_node.set("y", str(self.bounding_sphere_center[1]))
-        bsc_node.set("z", str(self.bounding_sphere_center[2]))
+        bsc_node.set("x", format_float(self.bounding_sphere_center[0]))
+        bsc_node.set("y", format_float(self.bounding_sphere_center[1]))
+        bsc_node.set("z", format_float(self.bounding_sphere_center[2]))
         
         bsr_node = Element("BoundingSphereRadius")
-        bsr_node.set("value", str(self.bounding_sphere_radius))
+        bsr_node.set("value", format_float(self.bounding_sphere_radius))
         
         bbmin_node = Element("BoundingBoxMin")
-        bbmin_node.set("x", str(self.bounding_box_min[0]))
-        bbmin_node.set("y", str(self.bounding_box_min[1]))
-        bbmin_node.set("z", str(self.bounding_box_min[2]))
+        bbmin_node.set("x", format_float(self.bounding_box_min[0]))
+        bbmin_node.set("y", format_float(self.bounding_box_min[1]))
+        bbmin_node.set("z", format_float(self.bounding_box_min[2]))
         
         bbmax_node = Element("BoundingBoxMax")
-        bbmax_node.set("x", str(self.bounding_box_max[0]))
-        bbmax_node.set("y", str(self.bounding_box_max[1]))
-        bbmax_node.set("z", str(self.bounding_box_max[2]))
+        bbmax_node.set("x", format_float(self.bounding_box_max[0]))
+        bbmax_node.set("y", format_float(self.bounding_box_max[1]))
+        bbmax_node.set("z", format_float(self.bounding_box_max[2]))
         
         ldh_node = Element("LodDistHigh")
-        ldh_node.set("value", str(self.lod_dist_high))
+        ldh_node.set("value", format_float(self.lod_dist_high))
         ldm_node = Element("LodDistMed")
-        ldm_node.set("value", str(self.lod_dist_med))
+        ldm_node.set("value", format_float(self.lod_dist_med))
         ldl_node = Element("LodDistLow")
-        ldl_node.set("value", str(self.lod_dist_low))
+        ldl_node.set("value", format_float(self.lod_dist_low))
         ldvl_node = Element("LodDistVlow")
-        ldvl_node.set("value", str(self.lod_dist_vlow)) 
+        ldvl_node.set("value", format_float(self.lod_dist_vlow)) 
 
         flagsh_node = Element("FlagsHigh")
         flagsh_node.set("value", str(self.flags_high))
