@@ -867,6 +867,7 @@ glass_emissivenight_alphasps = [
 
 glass_envsps = [
                 ShaderProperty("Layout", PNCTX),
+                ShaderProperty("RenderBucket", 1),
                 ShaderProperty("Image", "DiffuseSampler"),
                 ShaderProperty("Image", "BumpSampler"),
                 ShaderProperty("Image", "SpecSampler"),
