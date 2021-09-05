@@ -233,7 +233,7 @@ def create_skeleton(skeleton, armature):
 
     return armature
 
-def create_drawable(drawable, filepath=None, armature=None, bones_override=None, clean=False, shared_txds=None):
+def create_drawable(drawable, filepath=None, armature=None, bones_override=None, clean=False, shared_txds=None, skel_override=None):
 
     if clean is True:
         if drawable.is_empty() is True:
@@ -302,9 +302,17 @@ def create_drawable(drawable, filepath=None, armature=None, bones_override=None,
         cobj.parent = armature
         bpy.context.scene.collection.objects.link(cobj)
 
+    if skel_override != None:
+        for obj in armature.children:
+            mod = obj.modifiers.get("Armature")
+            if mod is None:
+                continue
+
+            mod.object = skel_override
+
     return armature
 
-def create_drawable_dict(drawable_dict, filepath):
+def create_drawable_dict(drawable_dict, filepath, shared_txds=None, skel_override=None):
 
     name = os.path.basename(filepath)[:-8]
     vmodels = []
@@ -313,13 +321,21 @@ def create_drawable_dict(drawable_dict, filepath):
     armature_with_bones_obj = None
     mod_objs = []
     drawable_with_bones = None
-    for drawable in drawable_dict.drawables:
-        if drawable.get_bones() is not None:
-            drawable_with_bones = drawable
-            break
+    bones_override = None
+
+    if skel_override != None:
+        armature_with_bones_obj = skel_override
+        bones_override = armature_with_bones_obj.pose.bones
+
+    if bones_override == None:
+        for drawable in drawable_dict.drawables:
+            if drawable.get_bones() is not None:
+                drawable_with_bones = drawable
+                bones_override = drawable_with_bones.get_bones()
+                break
 
     for drawable in drawable_dict.drawables:
-        vmodel_obj = create_drawable(drawable, filepath, armature=None, bones_override=drawable_with_bones.get_bones())
+        vmodel_obj = create_drawable(drawable, filepath, armature=None, bones_override=bones_override, shared_txds=shared_txds)
         if (armature_with_bones_obj == None and drawable_with_bones is not None and drawable.skeleton is not None):
             armature_with_bones_obj = vmodel_obj
 
@@ -358,6 +374,14 @@ def read_ydd_xml(root):
 
     return drawable_dict
 
+def get_skeleton_names(operator, context):
+    skels = []
+    for obj in context.scene.objects:
+        if obj.type == 'ARMATURE':
+            skels.append((obj.name, obj.name, ''))
+    
+    return skels
+
 class ImportYDR(Operator, ImportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
     bl_idname = "importxml.ydr"  # important since its how bpy.ops.import_test.some_data is constructed
@@ -366,11 +390,25 @@ class ImportYDR(Operator, ImportHelper):
     # ImportHelper mixin class uses this
     filename_ext = ".ydr.xml"
 
+    attach_skel: BoolProperty(
+        name='Use existing armature',
+        default=False
+    )
+
+    attach_skel_name: EnumProperty(
+        name='Armature',
+        default=0,
+        items=get_skeleton_names
+    )
+
     filter_glob: StringProperty(
         default="*.ydr.xml",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
+
+    def draw(self, context):
+        pass
 
     def execute(self, context):
         start = time.time()
@@ -382,8 +420,11 @@ class ImportYDR(Operator, ImportHelper):
 
         drawable = read_ydr_xml(root)
         shared_txds = load_shared_txds(prefs.shared_textures_path)
+        skel_override = None
+        if self.attach_skel:
+            skel_override = context.scene.objects.get(self.attach_skel_name)
 
-        vmodel_obj = create_drawable(drawable, self.filepath, shared_txds=shared_txds)
+        vmodel_obj = create_drawable(drawable, self.filepath, shared_txds=shared_txds, skel_override=skel_override)
 
         finished = time.time()
         
@@ -404,21 +445,43 @@ class ImportYDD(Operator, ImportHelper):
     # ImportHelper mixin class uses this
     filename_ext = ".ydd.xml"
 
+    attach_skel: BoolProperty(
+        name='Use existing armature',
+        default=False
+    )
+
+    attach_skel_name: EnumProperty(
+        name='Armature',
+        default=0,
+        items=get_skeleton_names
+    )
+
     filter_glob: StringProperty(
         default="*.ydd.xml",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
+    
+    def draw(self, context):
+        pass
 
     def execute(self, context):
         start = time.time()
+        
+        prefs = context.preferences.addons[__package__].preferences
 
         tree = ET.parse(self.filepath)
         root = tree.getroot()
 
         name = os.path.basename(self.filepath)[:-8]
         drawable_dict = read_ydd_xml(root)
-        create_drawable_dict(drawable_dict, self.filepath)
+
+        shared_txds = load_shared_txds(prefs.shared_textures_path)
+        skel_override = None
+        if self.attach_skel:
+            skel_override = context.scene.objects.get(self.attach_skel_name)
+
+        create_drawable_dict(drawable_dict, self.filepath, shared_txds=shared_txds, skel_override=skel_override)
 
         finished = time.time()
         
@@ -431,6 +494,32 @@ class ImportYDD(Operator, ImportHelper):
 
         return {'FINISHED'}
 
+class Sollumz_PT_import_panel(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Import settings"
+    bl_parent_id = "FILE_PT_operator"
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        return operator.bl_idname == "IMPORTXML_OT_ydd" or operator.bl_idname == "IMPORTXML_OT_ydr"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        layout.prop(operator, "attach_skel")
+        sub = layout.row()
+        sub.enabled = operator.attach_skel
+        sub.prop(operator, "attach_skel_name")
+
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_import_ydr(self, context):
@@ -440,12 +529,14 @@ def menu_func_import_ydd(self, context):
     self.layout.operator(ImportYDD.bl_idname, text="Ydd (.ydd.xml)")
 
 def register():
+    bpy.utils.register_class(Sollumz_PT_import_panel)
     bpy.utils.register_class(ImportYDR)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import_ydr)
     bpy.utils.register_class(ImportYDD)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import_ydd)
 
 def unregister():
+    bpy.utils.unregister_class(Sollumz_PT_import_panel)
     bpy.utils.unregister_class(ImportYDR)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_ydr)
     bpy.utils.unregister_class(ImportYDD)

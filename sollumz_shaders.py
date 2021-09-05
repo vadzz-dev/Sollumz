@@ -352,13 +352,14 @@ def create_material(shader, texture_dictionary=None, filepath=None, shared_txds=
 def load_shared_txds(path):
     txds = {}
 
-    for filename in os.listdir(path):
-        if filename.endswith(".ytd.xml"):
-            tree = ET.parse(path + '/' + filename)
-            txd = TextureDictionary()
-            txd.read_xml(tree.getroot())
+    if os.path.isdir(path):
+        for filename in os.listdir(path):
+            if filename.endswith(".ytd.xml"):
+                tree = ET.parse(path + '/' + filename)
+                txd = TextureDictionary()
+                txd.read_xml(tree.getroot())
 
-            txds[os.path.abspath(path) + '\\' + filename[:-8] + '\\'] = txd.to_dict()
+                txds[os.path.abspath(path) + '\\' + filename[:-8] + '\\'] = txd.to_dict()
 
     return txds
 

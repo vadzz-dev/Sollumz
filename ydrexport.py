@@ -556,7 +556,7 @@ def write_texturedictionary_node(materials, exportpath, shared_txds=None):
             if(node != None):
                 all_nodes.append(node)
     
-    #removes duplicates and shared textures!
+    #removes duplicates
     for node in all_nodes: 
         t_name = node[0].text
         
@@ -565,11 +565,6 @@ def write_texturedictionary_node(materials, exportpath, shared_txds=None):
         for t in td_node:
             if(t[0].text == t_name):
                 append = False
-
-        if shared_txds is not None:
-            for txd in shared_txds.values():
-                if t_name in txd:
-                    append = False
                 
         if(append == True):
             td_node.append(node)        
@@ -776,8 +771,9 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None, shared_txds=
 
     materials = get_used_materials(obj)
     bounds = []
-    if bones == None:
-        bones = obj.pose.bones
+    
+    # if bones == None:
+        # bones = obj.pose.bones
 
     flagshigh = 0
     flagsmed = 0
@@ -798,6 +794,11 @@ def write_drawable(obj, filepath, root_name="Drawable", bones=None, shared_txds=
             if(c.level_of_detail == "Very Low"):
                 geometries_vlow.append(c)
                 flagsvlow += 1
+            
+            if bones == None:
+                for m in c.modifiers:
+                    if m.type == 'ARMATURE' and len(m.object.pose.bones) > 0:
+                        bones = m.object.pose.bones
 
     drawable_node.flags_high = flagshigh
     drawable_node.flags_med = flagsmed
@@ -833,7 +834,7 @@ def write_drawable_dictionary(obj, filepath):
     bones = None
     for c in children:
         if c.sollumtype == "Drawable" and len(c.pose.bones) > 0:
-            bones = c.pose.bones
+            # bones = c.pose.bones
             break
 
     for c in children:
