@@ -87,18 +87,27 @@ def process_uv(uv):
 
     return [u, v]
 
-def get_vertex_string(obj, vlayout, bones, depsgraph):
+def compare_vtx(vtx, uvs):
+    for id, uv2 in enumerate(uvs):
+        uv = getattr(vtx, "texcoord" + str(id))
+        if (uv2 - uv).length > 0.0000001:
+            return False
+
+    return True
+
+def get_vertex_index_buffers(obj, vlayout, bones, depsgraph):
     mesh = bpy.data.meshes.new_from_object(obj, preserve_all_data_layers=True, depsgraph=depsgraph)
-    
-    vertamount = len(mesh.vertices)
-    texcoords = {}
+
+    v_ids = []
+    for i in range(len(mesh.vertices)):
+        v_ids.append([])
 
     vb = VertexBuffer()
-    vb.vertices = [None] * vertamount
+    vb.vertices = []
     vb.layout = vlayout
 
-    for i in range(6):
-        texcoords[i] = [None] * vertamount       
+    ib = IndexBuffer()
+    index_list = deque()
     
     if mesh.has_custom_normals:
         mesh.calc_normals_split()
@@ -127,81 +136,87 @@ def get_vertex_string(obj, vlayout, bones, depsgraph):
 
     for poly in mesh.polygons:
         for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
-            vi = mesh.loops[loop_index].vertex_index
-            vertex = Vertex()
-            vertex.position = mesh.vertices[vi].co
-            vertex.normal = mesh.loops[loop_index].normal
-            vertex.colors0 = clr0_layer.data[loop_index].color
-            vertex.colors1 = clr1_layer.data[loop_index].color
+            loop = mesh.loops[loop_index]
+            vi = loop.vertex_index
+            uvs = [None] * len(mesh.uv_layers)
             for uv_layer_id in range(len(mesh.uv_layers)):
                 uv_layer = mesh.uv_layers[uv_layer_id].data
                 uv = process_uv(uv_layer[loop_index].uv)
                 u = uv[0]
                 v = uv[1]
-                fixed_uv = Vector((u, v))
-                # texcoords[uv_layer_id][vi] = fixed_uv
-                layer = "texcoord" + str(uv_layer_id)
-                setattr(vertex, layer, fixed_uv)
+                uvs[uv_layer_id] = Vector((u, v))
 
-            vertex.tangent = mesh.loops[loop_index].tangent.to_4d()
-            # bitangent = bitangent_sign * cross(normal, tangent)
-            vertex.tangent.w = mesh.loops[loop_index].bitangent_sign
-            #FIXME: one vert can only be influenced by 4 weights at most
-            vertex_group_elements = mesh.vertices[vi].groups
-
-            if len(vertex_group_elements) > 0:
-                vertex.blendweights = [0] * 4
-                vertex.blendindices = [0] * 4
-                valid_weights = 0
-                total_weights = 0
-                max_weights = 0
-                max_weights_index = -1
-
-                for element in vertex_group_elements:
-                    if element.group >= len(vertex_groups):
-                        continue
-
-                    vertex_group = vertex_groups[element.group]
-                    bone_index = bones_index_dict.get(vertex_group.name, -1)
-                    # 1/255 = 0.0039 the minimal weight for one vertex group
-                    weight = round(element.weight * 255)
-                    if (vertex_group.lock_weight == False and bone_index != -1 and weight > 0 and valid_weights < 4):
-                        vertex.blendweights[valid_weights] = weight
-                        vertex.blendindices[valid_weights] = bone_index
-                        if (max_weights < weight):
-                            max_weights_index = valid_weights
-                            max_weights = weight
-
-                        valid_weights += 1
-                        total_weights += weight
-
-                # weights verification stuff
-                # wtf rockstar
-                # why do you even use int for weights
-                if valid_weights > 0 and max_weights_index != -1:
-                    vertex.blendweights[max_weights_index] = vertex.blendweights[max_weights_index] + (255 - total_weights)
-            else:
-                vertex.blendweights = [0, 0, 255, 0]
-                vertex.blendindices = [0] * 4
+            vid = None
+            for id in v_ids[vi]:
+                if compare_vtx(vb.vertices[id], uvs):
+                    vid = id
+                    break
             
-            vb.vertices[vi] = vertex
+            if vid == None:
+                vid = len(vb.vertices)
+                v_ids[vi].append(vid)
+
+                if (len(v_ids[vi]) > 3):
+                    print(v_ids[vi], vi)
+
+                vertex = Vertex()
+                vertex.position = mesh.vertices[vi].co
+                vertex.normal = loop.normal
+                vertex.colors0 = clr0_layer.data[loop_index].color
+                vertex.colors1 = clr1_layer.data[loop_index].color
+
+                for id, uv in enumerate(uvs):
+                    setattr(vertex, "texcoord" + str(id), uv)
+
+                vertex.tangent = loop.tangent.to_4d()
+                # bitangent = bitangent_sign * cross(normal, tangent)
+                vertex.tangent.w = loop.bitangent_sign
+                #FIXME: one vert can only be influenced by 4 weights at most
+                vertex_group_elements = mesh.vertices[vi].groups
+
+                if len(vertex_group_elements) > 0:
+                    vertex.blendweights = [0] * 4
+                    vertex.blendindices = [0] * 4
+                    valid_weights = 0
+                    total_weights = 0
+                    max_weights = 0
+                    max_weights_index = -1
+
+                    for element in vertex_group_elements:
+                        if element.group >= len(vertex_groups):
+                            continue
+
+                        vertex_group = vertex_groups[element.group]
+                        bone_index = bones_index_dict.get(vertex_group.name, -1)
+                        # 1/255 = 0.0039 the minimal weight for one vertex group
+                        weight = round(element.weight * 255)
+                        if (vertex_group.lock_weight == False and bone_index != -1 and weight > 0 and valid_weights < 4):
+                            vertex.blendweights[valid_weights] = weight
+                            vertex.blendindices[valid_weights] = bone_index
+                            if (max_weights < weight):
+                                max_weights_index = valid_weights
+                                max_weights = weight
+
+                            valid_weights += 1
+                            total_weights += weight
+
+                    # weights verification stuff
+                    # wtf rockstar
+                    # why do you even use int for weights
+                    if valid_weights > 0 and max_weights_index != -1:
+                        vertex.blendweights[max_weights_index] = vertex.blendweights[max_weights_index] + (255 - total_weights)
+                else:
+                    vertex.blendweights = [0, 0, 255, 0]
+                    vertex.blendindices = [0] * 4
+
+                vb.vertices.append(vertex)
+            
+            index_list.append(str(vid))
 
     vb.vertices_to_data()
-
-    return vb
-
-def get_index_string(mesh):
-    
-    ib = IndexBuffer()
-    index_list = deque()
-    
-    for poly in mesh.polygons:
-        for loop_index in range(poly.loop_start, poly.loop_start + poly.loop_total):
-            index_list.append(str(mesh.loops[loop_index].vertex_index))
-            
     ib.data = " ".join(index_list)
 
-    return ib
+    return vb, ib
 
 def fix_shader_name(name, no_extension = False): #because blender renames everything to .00X
     newname = ""
@@ -270,10 +285,9 @@ def write_model_node(objs, materials, bones):
         print('Processing shader', shader_index, shader.name)
         vlayout = get_vertex_layout(shader.name)
 
-        vb = get_vertex_string(obj_eval, vlayout, bones, depsgraph)
+        vb, ib = get_vertex_index_buffers(obj_eval, vlayout, bones, depsgraph)
         i_node.vertex_buffer = vb
 
-        ib = get_index_string(model)
         i_node.index_buffer = ib
 
         m_node.geometries.append(i_node)
